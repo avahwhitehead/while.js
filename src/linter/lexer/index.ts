@@ -134,14 +134,38 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 
 	//Run until the input string is empty
 	while ((program = program.trim())) {
+		//End-of-line comment
+		if (program.substr(0, 2) === '//') {
+			//Ignore text to the next line break, or the end of the program
+			const index = program.search('\n|$') + 1;
+			pos += index;
+			program = program.substring(index);
+			continue;
+		}
+		//Comment block (multiline/inline)
+		if (program.substr(0, 2) == '(*') {
+			//Ignore text to the end of the comment block
+			const index = program.search(/\*\)|$/);
+			if (index === -1) {
+				//TODO: Handle missing end-of-block
+			}
+			pos += index + 2;
+			program = program.substring(index + 2);
+			continue;
+		}
+
+		//Read the next token in the program
 		let token: WHILE_TOKEN | null = read_next_token(program);
 		if (token === null) {
+			//Mark unrecognised tokens
 			token = {
 				type: 'unknown',
 				value: program.charAt(0)
 			};
 		}
+		//Save the token to the list
 		res.push(token);
+		//Remove the token from the start of the program
 		pos += token.value.length;
 		program = program.substring(token.value.length)
 	}

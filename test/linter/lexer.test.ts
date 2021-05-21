@@ -186,5 +186,129 @@ describe('Lexer', function () {
 				);
 			});
 		});
+
+		describe('comments', function () {
+			describe('single line comment', function () {
+				it(`should ignore the comment`, function () {
+					expect(lexer(
+						'//This is a program to do something...\n' +
+						'prog\n' +
+						'read X {\n' +
+						'	//Do something\n' +
+						'}\n' +
+						'write X'
+					)).to.eql(
+						[
+							idnt('prog'),
+							expr(TKN_READ),
+							idnt('X'),
+							sym(TKN_BLOCK_OPN),
+								//Nothing here
+							sym(TKN_BLOCK_CLS),
+							expr(TKN_WRITE),
+							idnt('X'),
+						]
+					);
+				});
+			});
+
+			describe('EOL comment', function () {
+				it(`should ignore the comment to the end of the line`, function () {
+					expect(lexer(
+						'prog\n' +
+						'read X {\n' +
+						'	X := tl X //Get the right child\n' +
+						'}\n' +
+						'write X'
+					)).to.eql(
+						[
+							idnt('prog'),
+							expr(TKN_READ),
+							idnt('X'),
+							sym(TKN_BLOCK_OPN),
+								idnt('X'),
+								sym(TKN_ASSGN),
+								expr(TKN_TL),
+								idnt('X'),
+							sym(TKN_BLOCK_CLS),
+							expr(TKN_WRITE),
+							idnt('X'),
+						]
+					);
+				});
+			});
+
+			describe('inline comment', function () {
+				it(`should ignore the comment`, function () {
+					expect(lexer(
+						'prog\n' +
+						'read X {\n' +
+						'	X := tl (*Get the right child*) X' +
+						'}\n' +
+						'write X'
+					)).to.eql(
+						[
+							idnt('prog'),
+							expr(TKN_READ),
+							idnt('X'),
+							sym(TKN_BLOCK_OPN),
+								idnt('X'),
+								sym(TKN_ASSGN),
+								expr(TKN_TL),
+								idnt('X'),
+							sym(TKN_BLOCK_CLS),
+							expr(TKN_WRITE),
+							idnt('X'),
+						]
+					);
+				});
+			});
+
+			describe('multiline comment', function () {
+				it(`should ignore the commented lines`, function () {
+					expect(lexer(
+						'prog\n' +
+						'read X {\n' +
+						'	(*' +
+						'	This is a commented line' +
+						'	X := tl X' +
+						'	None of this is parsed' +
+						'	*)' +
+						'}\n' +
+						'write X'
+					)).to.eql(
+						[
+							idnt('prog'),
+							expr(TKN_READ),
+							idnt('X'),
+							sym(TKN_BLOCK_OPN),
+								//Nothing here
+							sym(TKN_BLOCK_CLS),
+							expr(TKN_WRITE),
+							idnt('X'),
+						]
+					);
+				});
+			});
+		});
+
+		describe('multiline comment', function () {
+			describe('only comment', function () {
+				it(`should produce empty lists`, function () {
+					expect(lexer(
+						'//An empty file'
+					)).to.eql(
+						[]
+					);
+					expect(lexer(
+						'(*' +
+						'An empty file' +
+						'*)'
+					)).to.eql(
+						[]
+					);
+				});
+			});
+		});
 	});
 });
