@@ -59,7 +59,7 @@ export interface IDENT_TYPE {
 }
 
 /**
- *
+ * Represents an unknown identifier in the token list
  */
 export interface UNKNOWN_TYPE {
 	type: 'unknown';
