@@ -1,9 +1,10 @@
+import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import lexer, {
 	EXPR_TOKEN,
 	EXPR_TYPE,
-	IDENT_TYPE,
+	IDENT_TYPE, OP_TOKEN, OP_TYPE,
 	SYMBOL_TOKEN,
 	SYMBOL_TYPE,
 	TKN_ASSGN,
@@ -23,6 +24,8 @@ import lexer, {
 	UNKNOWN_TYPE
 } from "../../src/linter/lexer";
 
+chai.config.truncateThreshold = 0;
+
 const SYMBOL_ATOMS: SYMBOL_TOKEN[] = [
 	//Symbols
 	TKN_SEP,
@@ -30,37 +33,51 @@ const SYMBOL_ATOMS: SYMBOL_TOKEN[] = [
 	TKN_BLOCK_OPN, TKN_BLOCK_CLS,
 	TKN_PREN_OPN, TKN_PREN_CLS,
 ];
+const OP_ATOMS: OP_TOKEN[] = [
+	//Operations
+	TKN_CONS,
+	TKN_HD, TKN_TL,
+];
 const EXPR_ATOMS: EXPR_TOKEN[] = [
 	//Expressions
 	TKN_READ, TKN_WRITE,
-	TKN_CONS,
-	TKN_HD, TKN_TL,
 	TKN_IF, TKN_ELSE,
 	TKN_WHILE,
 ];
 
-function sym(t: SYMBOL_TOKEN): SYMBOL_TYPE {
+function sym(t: SYMBOL_TOKEN, pos: number): SYMBOL_TYPE {
 	return {
 		type: 'symbol',
 		value: t,
+		pos
 	};
 }
-function expr(t: EXPR_TOKEN): EXPR_TYPE {
+function expr(t: EXPR_TOKEN, pos: number): EXPR_TYPE {
 	return {
 		type: 'expression',
 		value: t,
+		pos
 	};
 }
-function idnt(t: string): IDENT_TYPE {
+function opr(t: OP_TOKEN, pos: number): OP_TYPE {
+	return {
+		type: 'operation',
+		value: t,
+		pos
+	};
+}
+function idnt(t: string, pos: number): IDENT_TYPE {
 	return {
 		type: 'identifier',
 		value: t,
+		pos
 	};
 }
-function ukwn(t: string): UNKNOWN_TYPE {
+function ukwn(t: string, pos: number): UNKNOWN_TYPE {
 	return {
 		type: 'unknown',
 		value: t,
+		pos
 	};
 }
 
@@ -68,15 +85,22 @@ describe('Lexer', function () {
 	describe(`atoms`, function () {
 		for (let atom of SYMBOL_ATOMS) {
 			it(`should accept symbol '${atom}'`, function () {
-				expect(lexer(atom)).to.eql(
-					[sym(atom)]
+				expect(lexer(atom)).to.deep.equal(
+					[sym(atom, 0)]
 				);
 			});
 		}
 		for (let atom of EXPR_ATOMS) {
 			it(`should accept expression '${atom}'`, function () {
-				expect(lexer(atom)).to.eql(
-					[expr(atom)]
+				expect(lexer(atom)).to.deep.equal(
+					[expr(atom, 0)]
+				);
+			});
+		}
+		for (let atom of OP_ATOMS) {
+			it(`should accept operation '${atom}'`, function () {
+				expect(lexer(atom)).to.deep.equal(
+					[opr(atom, 0)]
 				);
 			});
 		}
@@ -85,8 +109,8 @@ describe('Lexer', function () {
 	describe(`identifiers`, function () {
 		for (let atom of ['nil', 'X', 'Y', 'XY', 'my_variable_name']) {
 			it(`should accept identifier '${atom}'`, function () {
-				expect(lexer(atom)).to.eql(
-					[idnt(atom)]
+				expect(lexer(atom)).to.deep.equal(
+					[idnt(atom, 0)]
 				);
 			});
 		}
@@ -95,16 +119,16 @@ describe('Lexer', function () {
 	describe(`invalid atoms`, function () {
 		for (let atom of [':', '#']) {
 			it(`should reject '${atom}'`, function () {
-				expect(lexer(atom)).to.eql(
-					[ukwn(atom)]
+				expect(lexer(atom)).to.deep.equal(
+					[ukwn(atom, 0)]
 				);
 			});
 		}
 		describe(`numbers`, function () {
 			for (let atom of ['0', '1', '2', '9']) {
 				it(`should reject '${atom}'`, function () {
-					expect(lexer(atom)).to.eql(
-						[ukwn(atom)]
+					expect(lexer(atom)).to.deep.equal(
+						[ukwn(atom, 0)]
 					);
 				});
 			}
@@ -116,15 +140,15 @@ describe('Lexer', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
 					'ident read X {} write X'
-				)).to.eql(
+				)).to.deep.equal(
 					[
-						idnt('ident'),
-						expr(TKN_READ),
-						idnt('X'),
-						sym(TKN_BLOCK_OPN),
-						sym(TKN_BLOCK_CLS),
-						expr(TKN_WRITE),
-						idnt('X'),
+						idnt('ident', 0),
+						expr(TKN_READ, 6),
+						idnt('X', 11),
+						sym(TKN_BLOCK_OPN, 13),
+						sym(TKN_BLOCK_CLS, 14),
+						expr(TKN_WRITE, 16),
+						idnt('X', 22),
 					]
 				);
 			});
@@ -133,20 +157,20 @@ describe('Lexer', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
 					'add1 read X { Y := cons nil X } write Y'
-				)).to.eql(
+				)).to.deep.equal(
 					[
-						idnt('add1'),
-						expr(TKN_READ),
-						idnt('X'),
-						sym(TKN_BLOCK_OPN),
-							idnt('Y'),
-							sym(TKN_ASSGN),
-							expr(TKN_CONS),
-							idnt('nil'),
-							idnt('X'),
-						sym(TKN_BLOCK_CLS),
-						expr(TKN_WRITE),
-						idnt('Y'),
+						idnt('add1', 0),
+						expr(TKN_READ, 5),
+						idnt('X', 10),
+						sym(TKN_BLOCK_OPN, 12),
+							idnt('Y', 14),
+							sym(TKN_ASSGN, 16),
+							opr(TKN_CONS, 19),
+							idnt('nil', 24),
+							idnt('X', 28),
+						sym(TKN_BLOCK_CLS, 30),
+						expr(TKN_WRITE, 32),
+						idnt('Y', 38),
 					]
 				);
 			});
@@ -161,27 +185,27 @@ describe('Lexer', function () {
 					'	Y := cons nil Y\n' +
 					'}\n' +
 					'write Y'
-				)).to.eql(
+				)).to.deep.equal(
 					[
-						idnt('add2'),
-						expr(TKN_READ),
-						idnt('X'),
-						sym(TKN_BLOCK_OPN),
-							idnt('Y'),
-							sym(TKN_ASSGN),
-							expr(TKN_CONS),
-							idnt('nil'),
-							idnt('X'),
-							sym(TKN_SEP),
+						idnt('add2', 0),
+						expr(TKN_READ, 5),
+						idnt('X', 10),
+						sym(TKN_BLOCK_OPN, 12),
+							idnt('Y', 15),
+							sym(TKN_ASSGN, 17),
+							opr(TKN_CONS, 20),
+							idnt('nil', 25),
+							idnt('X', 29),
+							sym(TKN_SEP, 30),
 
-							idnt('Y'),
-							sym(TKN_ASSGN),
-							expr(TKN_CONS),
-							idnt('nil'),
-							idnt('Y'),
-						sym(TKN_BLOCK_CLS),
-						expr(TKN_WRITE),
-						idnt('Y'),
+							idnt('Y', 33),
+							sym(TKN_ASSGN, 35),
+							opr(TKN_CONS, 38),
+							idnt('nil', 43),
+							idnt('Y', 47),
+						sym(TKN_BLOCK_CLS, 49),
+						expr(TKN_WRITE, 51),
+						idnt('Y', 57),
 					]
 				);
 			});
@@ -197,16 +221,16 @@ describe('Lexer', function () {
 						'	//Do something\n' +
 						'}\n' +
 						'write X'
-					)).to.eql(
+					)).to.deep.equal(
 						[
-							idnt('prog'),
-							expr(TKN_READ),
-							idnt('X'),
-							sym(TKN_BLOCK_OPN),
+							idnt('prog', 39),
+							expr(TKN_READ, 44),
+							idnt('X', 49),
+							sym(TKN_BLOCK_OPN, 51),
 								//Nothing here
-							sym(TKN_BLOCK_CLS),
-							expr(TKN_WRITE),
-							idnt('X'),
+							sym(TKN_BLOCK_CLS, 69),
+							expr(TKN_WRITE, 71),
+							idnt('X', 77),
 						]
 					);
 				});
@@ -220,19 +244,19 @@ describe('Lexer', function () {
 						'	X := tl X //Get the right child\n' +
 						'}\n' +
 						'write X'
-					)).to.eql(
+					)).to.deep.equal(
 						[
-							idnt('prog'),
-							expr(TKN_READ),
-							idnt('X'),
-							sym(TKN_BLOCK_OPN),
-								idnt('X'),
-								sym(TKN_ASSGN),
-								expr(TKN_TL),
-								idnt('X'),
-							sym(TKN_BLOCK_CLS),
-							expr(TKN_WRITE),
-							idnt('X'),
+							idnt('prog', 0),
+							expr(TKN_READ, 5),
+							idnt('X', 10),
+							sym(TKN_BLOCK_OPN, 12),
+								idnt('X', 15),
+								sym(TKN_ASSGN, 17),
+								opr(TKN_TL, 20),
+								idnt('X', 23),
+							sym(TKN_BLOCK_CLS, 47),
+							expr(TKN_WRITE, 49),
+							idnt('X', 55),
 						]
 					);
 				});
@@ -246,19 +270,19 @@ describe('Lexer', function () {
 						'	X := tl (*Get the right child*) X' +
 						'}\n' +
 						'write X'
-					)).to.eql(
+					)).to.deep.equal(
 						[
-							idnt('prog'),
-							expr(TKN_READ),
-							idnt('X'),
-							sym(TKN_BLOCK_OPN),
-								idnt('X'),
-								sym(TKN_ASSGN),
-								expr(TKN_TL),
-								idnt('X'),
-							sym(TKN_BLOCK_CLS),
-							expr(TKN_WRITE),
-							idnt('X'),
+							idnt('prog', 0),
+							expr(TKN_READ, 5),
+							idnt('X', 10),
+							sym(TKN_BLOCK_OPN, 12),
+								idnt('X', 15),
+								sym(TKN_ASSGN, 17),
+								opr(TKN_TL, 20),
+								idnt('X', 47),
+							sym(TKN_BLOCK_CLS, 48),
+							expr(TKN_WRITE, 50),
+							idnt('X', 56),
 						]
 					);
 				});
@@ -276,16 +300,16 @@ describe('Lexer', function () {
 						'	*)' +
 						'}\n' +
 						'write X'
-					)).to.eql(
+					)).to.deep.equal(
 						[
-							idnt('prog'),
-							expr(TKN_READ),
-							idnt('X'),
-							sym(TKN_BLOCK_OPN),
+							idnt('prog', 0),
+							expr(TKN_READ, 5),
+							idnt('X', 10),
+							sym(TKN_BLOCK_OPN, 12),
 								//Nothing here
-							sym(TKN_BLOCK_CLS),
-							expr(TKN_WRITE),
-							idnt('X'),
+							sym(TKN_BLOCK_CLS, 78),
+							expr(TKN_WRITE, 80),
+							idnt('X', 86),
 						]
 					);
 				});
@@ -297,14 +321,14 @@ describe('Lexer', function () {
 				it(`should produce empty lists`, function () {
 					expect(lexer(
 						'//An empty file'
-					)).to.eql(
+					)).to.deep.equal(
 						[]
 					);
 					expect(lexer(
 						'(*' +
 						'An empty file' +
 						'*)'
-					)).to.eql(
+					)).to.deep.equal(
 						[]
 					);
 				});

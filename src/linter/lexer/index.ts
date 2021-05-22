@@ -6,7 +6,7 @@ export const TKN_BLOCK_OPN: SYMBOL_TOKEN = '{';
 export const TKN_BLOCK_CLS: SYMBOL_TOKEN = '}';
 export const TKN_PREN_OPN: SYMBOL_TOKEN = '(';
 export const TKN_PREN_CLS: SYMBOL_TOKEN = ')';
-const SYMBOL_LIST = [
+const SYMBOL_LIST: SYMBOL_TOKEN[] = [
 	//Symbols
 	TKN_SEP,
 	TKN_ASSGN,
@@ -15,22 +15,28 @@ const SYMBOL_LIST = [
 ];
 
 //Expressions/Atoms
-export type EXPR_TOKEN = 'cons' | 'hd' | 'tl' | 'if' | 'else' | 'while' | 'read' | 'write';
-export const TKN_CONS: EXPR_TOKEN = 'cons';
-export const TKN_HD: EXPR_TOKEN = 'hd';
-export const TKN_TL: EXPR_TOKEN = 'tl';
+export type EXPR_TOKEN = 'if' | 'else' | 'while' | 'read' | 'write';
 export const TKN_IF: EXPR_TOKEN = 'if';
 export const TKN_ELSE: EXPR_TOKEN = 'else';
 export const TKN_WHILE: EXPR_TOKEN = 'while';
 export const TKN_READ: EXPR_TOKEN = 'read';
 export const TKN_WRITE: EXPR_TOKEN = 'write';
-const EXPR_LIST = [
-	//Expressions
+const EXPR_LIST: EXPR_TOKEN[] = [
+	//Expression tokens
 	TKN_READ, TKN_WRITE,
-	TKN_CONS,
-	TKN_HD, TKN_TL,
 	TKN_IF, TKN_ELSE,
 	TKN_WHILE,
+];
+
+//Operations
+export type OP_TOKEN = 'cons' | 'hd' | 'tl';
+export const TKN_CONS: OP_TOKEN = 'cons';
+export const TKN_HD: OP_TOKEN = 'hd';
+export const TKN_TL: OP_TOKEN = 'tl';
+const OP_LIST: OP_TOKEN[] = [
+	//Operations
+	TKN_CONS,
+	TKN_HD, TKN_TL,
 ];
 
 //Token types
@@ -40,6 +46,7 @@ const EXPR_LIST = [
 export interface SYMBOL_TYPE {
 	type: 'symbol';
 	value: SYMBOL_TOKEN;
+	pos: number;
 }
 
 /**
@@ -48,6 +55,16 @@ export interface SYMBOL_TYPE {
 export interface EXPR_TYPE {
 	type: 'expression';
 	value: EXPR_TOKEN;
+	pos: number;
+}
+
+/**
+ * Represents an expression (e.g. cons/hd/if/...) in the token list.
+ */
+export interface OP_TYPE {
+	type: 'operation';
+	value: OP_TOKEN;
+	pos: number;
 }
 
 /**
@@ -56,6 +73,7 @@ export interface EXPR_TYPE {
 export interface IDENT_TYPE {
 	type: 'identifier';
 	value: string;
+	pos: number;
 }
 
 /**
@@ -64,12 +82,13 @@ export interface IDENT_TYPE {
 export interface UNKNOWN_TYPE {
 	type: 'unknown';
 	value: string;
+	pos: number;
 }
 
 /**
  * The type of the elements of the token list returned by the lexer
  */
-export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
+export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
 
 /**
  * Read an identifier (variable/program name) from the start of the program string.
@@ -85,8 +104,9 @@ function read_identifier(program: string): string|null {
 /**
  * Read a token from the start of the program string
  * @param program	The program string
+ * @param pos
  */
-function read_next_token(program: string): WHILE_TOKEN|null {
+function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
 	//Attempt to read a symbol
 	for (let sym of SYMBOL_LIST) {
 		//Check each symbol against the start of the program string
@@ -94,7 +114,8 @@ function read_next_token(program: string): WHILE_TOKEN|null {
 			//Return the symbol token if a match is found
 			return {
 				type: 'symbol',
-				value: sym
+				value: sym,
+				pos,
 			};
 		}
 	}
@@ -111,14 +132,25 @@ function read_next_token(program: string): WHILE_TOKEN|null {
 		if (expr === tkn) {
 			return {
 				type: 'expression',
-				value: tkn
+				value: tkn,
+				pos,
+			};
+		}
+	}
+	for (let tkn of OP_LIST) {
+		if (expr === tkn) {
+			return {
+				type: 'operation',
+				value: tkn,
+				pos,
 			};
 		}
 	}
 	//Otherwise the token is an identifier name
 	return {
 		type: 'identifier',
-		value: expr
+		value: expr,
+		pos,
 	};
 }
 
@@ -133,7 +165,14 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 	let res: WHILE_TOKEN[] = [];
 
 	//Run until the input string is empty
-	while ((program = program.trim())) {
+	while (program) {
+		const whitespace: RegExpMatchArray|null = program.match(/^\s+/);
+		if (whitespace !== null) {
+			let match = whitespace[0];
+			pos += match.length;
+			program = program.substring(match.length);
+		}
+
 		//End-of-line comment
 		if (program.substr(0, 2) === '//') {
 			//Ignore text to the next line break, or the end of the program
@@ -155,12 +194,13 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		}
 
 		//Read the next token in the program
-		let token: WHILE_TOKEN | null = read_next_token(program);
+		let token: WHILE_TOKEN | null = read_next_token(program, pos);
 		if (token === null) {
 			//Mark unrecognised tokens
 			token = {
 				type: 'unknown',
-				value: program.charAt(0)
+				value: program.charAt(0),
+				pos,
 			};
 		}
 		//Save the token to the list
