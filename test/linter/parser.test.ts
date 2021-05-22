@@ -225,13 +225,184 @@ describe('Parser', function () {
 			]);
 		});
 
-		//TODO: Test if-else
-		//TODO: Test long string of cons
-		//	cons cons nil cons nil nil cons nil nil
-		//	cons (cons nil (cons nil nil)) (cons nil nil)
 		//TODO: Test nested hd (e.g. hd hd hd X)
 		//TODO: Test nested tl (e.g. hd hd hd X)
+
+		it(`should accept an if-else statement`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 88),
+				body: [
+					{
+						type: 'cond',
+						condition: idnt('X', 17),
+						if: [
+							{
+								type: 'assign',
+								ident: idnt('X', 21),
+								arg: {
+									type: 'operation',
+									op: opr(TKN_TL, 26),
+									args: [idnt('X', 29)]
+								}
+							}
+						],
+						else: [
+							{
+								type: 'cond',
+								condition: idnt('X', 43),
+								if: [
+									{
+										type: 'assign',
+										ident: idnt('X', 47),
+										arg: {
+											type: 'operation',
+											op: opr(TKN_TL, 52),
+											args: [idnt('X', 55)]
+										}
+									}
+								],
+								else: [
+									{
+										type: 'assign',
+										ident: idnt('X', 66),
+										arg: {
+											type: 'operation',
+											op: opr(TKN_TL, 71),
+											args: [idnt('X', 74)]
+										}
+									}
+								]
+							},
+						]
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
 	});
+
+	describe('nested operations', function () {
+		it(`should correctly parse nested cons`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 67),
+				body: [
+					{
+						type: 'assign',
+						ident: idnt('X', 14),
+						arg: {
+							//cons
+							type: 'operation',
+							op: opr(TKN_CONS, 19),
+							args: [
+								{
+									//cons
+									type: 'operation',
+									op: opr(TKN_CONS, 24),
+									args: [
+										//nil
+										idnt('nil', 29),
+										{
+											//cons
+											type: 'operation',
+											op: opr(TKN_CONS, 33),
+											args: [
+												//nil nil
+												idnt('nil', 38),
+												idnt('nil', 42),
+											]
+										}
+									]
+								},
+								{
+									//nil nil
+									type: 'operation',
+									op: opr(TKN_CONS, 46),
+									args: [
+										idnt('nil', 51),
+										idnt('nil', 55),
+									]
+								}
+							]
+						}
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested cons with brackets`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 73),
+				body: [
+					{
+						type: 'assign',
+						ident: idnt('X', 14),
+						arg: {
+							//cons
+							type: 'operation',
+							op: opr(TKN_CONS, 19),
+							args: [
+								{
+									//cons
+									type: 'operation',
+									op: opr(TKN_CONS, 25),
+									args: [
+										//nil
+										idnt('nil', 30),
+										{
+											//cons
+											type: 'operation',
+											op: opr(TKN_CONS, 35),
+											args: [
+												//nil nil
+												idnt('nil', 40),
+												idnt('nil', 44),
+											]
+										}
+									]
+								},
+								{
+									//nil nil
+									type: 'operation',
+									op: opr(TKN_CONS, 51),
+									args: [
+										idnt('nil', 56),
+										idnt('nil', 60),
+									]
+								}
+							]
+						}
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
 
 	//TODO: Test errors from invalid programs
 });
