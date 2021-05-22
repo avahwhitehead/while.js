@@ -7,7 +7,7 @@ import lexer, {
 	EXPR_TYPE,
 	IDENT_TYPE, OP_TOKEN, OP_TYPE,
 	SYMBOL_TOKEN,
-	SYMBOL_TYPE, TKN_CONS, TKN_TL,
+	SYMBOL_TYPE, TKN_CONS, TKN_HD, TKN_TL,
 	UNKNOWN_TYPE
 } from "../../src/linter/lexer";
 import { AST_PROG } from "../../src/types/ast";
@@ -225,9 +225,6 @@ describe('Parser', function () {
 			]);
 		});
 
-		//TODO: Test nested hd (e.g. hd hd hd X)
-		//TODO: Test nested tl (e.g. hd hd hd X)
-
 		it(`should accept an if-else statement`, function () {
 			let expected: AST_PROG = {
 				type: 'program',
@@ -396,6 +393,70 @@ describe('Parser', function () {
 			};
 			expect(parser(lexer(
 				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested hds`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 38),
+				body: [{
+					type: 'assign',
+					ident: idnt('X', 14),
+					arg: {
+						type: 'operation',
+						op: opr(TKN_HD, 19),
+						args: [{
+							type: 'operation',
+							op: opr(TKN_HD, 22),
+							args: [{
+								type: 'operation',
+								op: opr(TKN_HD, 25),
+								args: [idnt('X', 28)]
+							}]
+						}]
+					}
+				}]
+			};
+			expect(parser(lexer(
+				'prog read X { X := hd hd hd X } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested tls`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 38),
+				body: [{
+					type: 'assign',
+					ident: idnt('X', 14),
+					arg: {
+						type: 'operation',
+						op: opr(TKN_TL, 19),
+						args: [{
+							type: 'operation',
+							op: opr(TKN_TL, 22),
+							args: [{
+								type: 'operation',
+								op: opr(TKN_TL, 25),
+								args: [idnt('X', 28)]
+							}]
+						}]
+					}
+				}]
+			};
+			expect(parser(lexer(
+				'prog read X { X := tl tl tl X } write X'
 			))).to.deep.equal([
 				expected,
 				[]
