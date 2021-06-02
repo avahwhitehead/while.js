@@ -15,7 +15,7 @@ import {
 } from "../lexer";
 import { AST_CMD, AST_EXPR, AST_PROG, } from "../../types/ast";
 
-type ErrorType = {
+export type ErrorType = {
 	position: number,
 	message: string,
 }
@@ -62,7 +62,7 @@ class ErrorManager {
 		} else {
 			if (expected.length === 1) msg += `: Expected "${expected[0]}"`;
 			else msg += `: Expected one of "${expected.join(`", "`)}"`;
-			if (actual) msg += `got "${actual}"`;
+			if (actual) msg += ` got "${actual}"`;
 		}
 		return this.addError(position, msg);
 	}
