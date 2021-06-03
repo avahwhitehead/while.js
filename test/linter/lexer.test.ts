@@ -2,6 +2,7 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import lexer, {
+	EOI_TYPE,
 	EXPR_TOKEN,
 	EXPR_TYPE,
 	IDENT_TYPE, OP_TOKEN, OP_TYPE,
@@ -80,27 +81,42 @@ function ukwn(t: string, pos: number): UNKNOWN_TYPE {
 		pos
 	};
 }
+function eoi(pos: number): EOI_TYPE {
+	return {
+		type: 'eoi',
+		pos
+	};
+}
 
 describe('Lexer', function () {
 	describe(`atoms`, function () {
 		for (let atom of SYMBOL_ATOMS) {
 			it(`should accept symbol '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
-					[sym(atom, 0)]
+					[
+						sym(atom, 0),
+						eoi(atom.length)
+					]
 				);
 			});
 		}
 		for (let atom of EXPR_ATOMS) {
 			it(`should accept expression '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
-					[expr(atom, 0)]
+					[
+						expr(atom, 0),
+						eoi(atom.length)
+					]
 				);
 			});
 		}
 		for (let atom of OP_ATOMS) {
 			it(`should accept operation '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
-					[opr(atom, 0)]
+					[
+						opr(atom, 0),
+						eoi(atom.length)
+					]
 				);
 			});
 		}
@@ -110,7 +126,10 @@ describe('Lexer', function () {
 		for (let atom of ['nil', 'X', 'Y', 'XY', 'my_variable_name']) {
 			it(`should accept identifier '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
-					[idnt(atom, 0)]
+					[
+						idnt(atom, 0),
+						eoi(atom.length)
+					]
 				);
 			});
 		}
@@ -120,7 +139,10 @@ describe('Lexer', function () {
 		for (let atom of [':', '#']) {
 			it(`should reject '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
-					[ukwn(atom, 0)]
+					[
+						ukwn(atom, 0),
+						eoi(1)
+					]
 				);
 			});
 		}
@@ -128,7 +150,10 @@ describe('Lexer', function () {
 			for (let atom of ['0', '1', '2', '9']) {
 				it(`should reject '${atom}'`, function () {
 					expect(lexer(atom)).to.deep.equal(
-						[ukwn(atom, 0)]
+						[
+							ukwn(atom, 0),
+							eoi(1)
+						]
 					);
 				});
 			}
@@ -149,6 +174,7 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 14),
 						expr(TKN_WRITE, 16),
 						idnt('X', 22),
+						eoi(23)
 					]
 				);
 			});
@@ -171,6 +197,7 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 30),
 						expr(TKN_WRITE, 32),
 						idnt('Y', 38),
+						eoi(39)
 					]
 				);
 			});
@@ -206,6 +233,7 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 49),
 						expr(TKN_WRITE, 51),
 						idnt('Y', 57),
+						eoi(58)
 					]
 				);
 			});
@@ -231,6 +259,7 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 69),
 							expr(TKN_WRITE, 71),
 							idnt('X', 77),
+							eoi(78)
 						]
 					);
 				});
@@ -257,6 +286,7 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 47),
 							expr(TKN_WRITE, 49),
 							idnt('X', 55),
+							eoi(56)
 						]
 					);
 				});
@@ -283,6 +313,7 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 48),
 							expr(TKN_WRITE, 50),
 							idnt('X', 56),
+							eoi(57)
 						]
 					);
 				});
@@ -310,26 +341,40 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 78),
 							expr(TKN_WRITE, 80),
 							idnt('X', 86),
+							eoi(87)
 						]
 					);
 				});
 			});
 		});
 
-		describe('multiline comment', function () {
-			describe('only comment', function () {
-				it(`should produce empty lists`, function () {
+		describe('only comment', function () {
+			describe('EOL comment', function () {
+				it(`should produce an empty list`, function () {
 					expect(lexer(
 						'//An empty file'
 					)).to.deep.equal(
-						[]
+						[eoi(15)]
 					);
+				});
+			});
+			describe('inline comment', function () {
+				it(`should produce an empty list`, function () {
 					expect(lexer(
-						'(*' +
-						'An empty file' +
-						'*)'
+						'(*An empty file*)'
 					)).to.deep.equal(
-						[]
+						[eoi(2+13+2)]
+					);
+				});
+			});
+			describe('multiline comment', function () {
+				it(`should produce an empty list`, function () {
+					expect(lexer(
+						'(*\n' +
+						'An empty file\n' +
+						'*)\n'
+					)).to.deep.equal(
+						[eoi(3+14+3)]
 					);
 				});
 			});

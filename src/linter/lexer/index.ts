@@ -86,9 +86,21 @@ export interface UNKNOWN_TYPE {
 }
 
 /**
+ * Represents the end of the input file
+ */
+export interface EOI_TYPE {
+	type: 'eoi',
+	pos: number,
+}
+
+/**
  * The type of the elements of the token list returned by the lexer
  */
-export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
+export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | EOI_TYPE | UNKNOWN_TYPE;
+/**
+ * Same as {@link WHILE_TOKEN} but without {@link EOI_TYPE}.
+ */
+export type INT_WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
 
 /**
  * Read an identifier (variable/program name) from the start of the program string.
@@ -106,7 +118,7 @@ function read_identifier(program: string): string|null {
  * @param program	The program string
  * @param pos
  */
-function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
+function read_next_token(program: string, pos: number): INT_WHILE_TOKEN|null {
 	//Attempt to read a symbol
 	for (let sym of SYMBOL_LIST) {
 		//Check each symbol against the start of the program string
@@ -165,18 +177,24 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 	let res: WHILE_TOKEN[] = [];
 
 	//Run until the input string is empty
-	while (program) {
+	while (program.length) {
 		const whitespace: RegExpMatchArray|null = program.match(/^\s+/);
 		if (whitespace !== null) {
 			let match = whitespace[0];
 			pos += match.length;
 			program = program.substring(match.length);
+			continue;
 		}
 
 		//End-of-line comment
 		if (program.substr(0, 2) === '//') {
 			//Ignore text to the next line break, or the end of the program
-			const index = program.search('\n|$') + 1;
+			let index = program.search('\n') || -1;
+			//Go to the end of the string
+			if (index === -1) index = program.length;
+			//Go to the end of the line, plus the line break
+			else index += 1;
+
 			pos += index;
 			program = program.substring(index);
 			continue;
@@ -184,12 +202,15 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		//Comment block (multiline/inline)
 		if (program.substr(0, 2) == '(*') {
 			//Ignore text to the end of the comment block
-			const index = program.search(/\*\)|$/);
+			let index = program.search(/\*\)/) || -1;
 			if (index === -1) {
 				//TODO: Handle missing end-of-block
+				pos = program.length;
+			} else {
+				index += 2;
+				pos += index;
 			}
-			pos += index + 2;
-			program = program.substring(index + 2);
+			program = program.substring(index);
 			continue;
 		}
 
@@ -210,6 +231,11 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		program = program.substring(token.value.length)
 	}
 
+	//Add an end-of-input marker
+	res.push({
+		type: 'eoi',
+		pos: pos
+	});
 	//Return the produced token list
 	return res;
 }
