@@ -348,27 +348,23 @@ describe('Lexer', function () {
 			});
 		});
 
-		describe('only comment', function () {
-			describe('EOL comment', function () {
-				it(`should produce an empty list`, function () {
+		describe('Comment only', function () {
+			describe(`should produce an empty list`, function () {
+				it('EOL comment', function () {
 					expect(lexer(
 						'//An empty file'
 					)).to.deep.equal(
 						[eoi(15)]
 					);
 				});
-			});
-			describe('inline comment', function () {
-				it(`should produce an empty list`, function () {
+				it('inline comment', function () {
 					expect(lexer(
 						'(*An empty file*)'
 					)).to.deep.equal(
 						[eoi(2+13+2)]
 					);
 				});
-			});
-			describe('multiline comment', function () {
-				it(`should produce an empty list`, function () {
+				it('multiline comment', function () {
 					expect(lexer(
 						'(*\n' +
 						'An empty file\n' +
