@@ -1,13 +1,18 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import parser from "../../src/linter/parser";
+import parser, { ErrorType } from "../../src/linter/parser";
 import lexer, {
 	EXPR_TOKEN,
 	EXPR_TYPE,
-	IDENT_TYPE, OP_TOKEN, OP_TYPE,
+	IDENT_TYPE,
+	OP_TOKEN,
+	OP_TYPE,
 	SYMBOL_TOKEN,
-	SYMBOL_TYPE, TKN_CONS, TKN_HD, TKN_TL,
+	SYMBOL_TYPE,
+	TKN_CONS,
+	TKN_HD,
+	TKN_TL,
 	UNKNOWN_TYPE
 } from "../../src/linter/lexer";
 import { AST_PROG } from "../../src/types/ast";
@@ -463,7 +468,568 @@ describe('Parser', function () {
 			]);
 		});
 	});
+});
 
+describe('Parser Error Checker', function () {
+	describe('error in base structure', function () {
+		it(`empty string`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected end of input: Missing program name',
+				position: 0
+			}];
+			const res = parser(lexer(
+				''
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name"`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected end of input: Expected "read"',
+				position: 4,
+			}];
+			const res = parser(lexer(
+				'name'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name {}"`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: 'Unexpected token: Expected "read"',
+					position: 5,
+				},
+				{
+					message: 'Unexpected end of input: Expected "write"',
+					position: 7,
+				},
+				{
+					message: 'Unexpected end of input: Expected "identifier"',
+					position: 7,
+				}
+			];
+			const res = parser(lexer(
+				'name {}'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"{}"`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: `Unexpected token: Missing program name`,
+					position: 0,
+				},
+				{
+					message: `Unexpected token: Expected "read"`,
+					position: 0
+				},
+				{
+					message: `Unexpected end of input: Expected "write"`,
+					position: 2
+				},
+				{
+					message: `Unexpected end of input: Expected "identifier"`,
+					position: 2
+				}
+			];
+			const res = parser(lexer(
+				'{}'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read"`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected end of input: Missing input variable',
+				position: 9,
+			}];
+			const res = parser(lexer(
+				'name read'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read X {"`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected end of input: Expected "}"',
+				position: 13,
+			}];
+			const tokens = lexer(
+				'name read X {'
+			);
+			const res = parser(tokens);
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`no closing bracket onwards`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: 'Unexpected end of input: Expected one of ";", "}"',
+					position: 22,
+				}
+			];
+			const res = parser(lexer(
+				'name read Y {\n'
+				+ '  X := Y'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read {}"`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: 'Missing input variable',
+					position: 10,
+				},
+				{
+					message: 'Unexpected end of input: Expected "write"',
+					position: 12,
+				},
+				{
+					message: 'Unexpected end of input: Expected "identifier"',
+					position: 12,
+				}
+			];
+			const res = parser(lexer(
+				'name read {}'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read X {}"`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: 'Unexpected end of input: Expected "write"',
+					position: 14,
+				},
+				{
+					message: 'Unexpected end of input: Expected "identifier"',
+					position: 14,
+				},
+			];
+			const res = parser(lexer(
+				'name read X {}'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read X {} write"`, function () {
+			const expected: ErrorType[] = [{
+				//TODO: Remove quotes from type errors
+				message: 'Unexpected end of input: Expected "identifier"',
+				position: 20,
+			}];
+			const res = parser(lexer(
+				'name read X {} write'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"name read X {} X"`, function () {
+			const expected: ErrorType[] = [
+				{
+					message: `Unexpected token: Expected "write" got "X"`,
+					position: 15,
+				},
+				//TODO: Should this have a separate error message for missing output variable?
+				{
+					message: 'Unexpected end of input: Expected "identifier"',
+					position: 16,
+				}
+			];
+			const res = parser(lexer(
+				'name read X {} X'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"prog X {} write X"`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected token: Expected "read" got "X"',
+				position: 5,
+			}];
+			const res = parser(lexer(
+				'prog X {} write X'
+			));
+			expect(res[1]).to.deep.equal(
+				expected
+			);
+		});
+		it(`"read X {} write X"`, function () {
+			const expected: ErrorType[] = [{
+				message: 'Unexpected token: Missing program name',
+				position: 0,
+			}];
+			expect(parser(lexer(
+				'read X {} write X'
+			))[1]).to.deep.equal(
+				expected
+			);
+		});
+	});
 
-	//TODO: Test errors from invalid programs
+	//TODO: Test same errors as above with populated code blocks
+
+	//TODO: Test multiple errors in some code
+	describe('error in base structure', function () {
+		it(`missing input var`, function () {
+			const expected: AST_PROG = {
+				type: 'program',
+				name: idnt('ident', 0),
+				input: idnt('X', 11),
+				output: idnt('X', 22),
+				body: []
+			};
+			expect(parser(lexer(
+				'ident read X {} write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+		it(`missing output var`, function () {
+			const expected: AST_PROG = {
+				type: 'program',
+				name: idnt('ident', 0),
+				input: idnt('X', 11),
+				output: idnt('X', 22),
+				body: []
+			};
+			expect(parser(lexer(
+				'ident read X {} write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('while statement', function () {
+		it(`should be accepted`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 44),
+				body: [
+					{
+						type: 'loop',
+						condition: idnt('X', 20),
+						body: [
+							{
+								type: 'assign',
+								ident: idnt('X', 24),
+								arg: {
+									type: 'operation',
+									op: opr(TKN_TL, 29),
+									args: [
+										idnt('X', 32)
+									]
+								}
+							}
+						],
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { while X { X := tl X } } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('if statement', function () {
+		it(`should accept an if without an else`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('Y', 54),
+				body: [
+					{
+						type: 'cond',
+						condition: {
+							type: 'operation',
+							op: opr('tl', 18),
+							args: [idnt('X', 21)],
+						},
+						if: [
+							{
+								type: 'assign',
+								ident: idnt('Y', 26),
+								arg: {
+									type: 'operation',
+									op: opr(TKN_CONS, 31),
+									args: [
+										idnt('nil', 36),
+										idnt('nil', 40),
+									]
+								}
+							}
+						],
+						else: []
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept an if-else statement`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 88),
+				body: [
+					{
+						type: 'cond',
+						condition: idnt('X', 17),
+						if: [
+							{
+								type: 'assign',
+								ident: idnt('X', 21),
+								arg: {
+									type: 'operation',
+									op: opr(TKN_TL, 26),
+									args: [idnt('X', 29)]
+								}
+							}
+						],
+						else: [
+							{
+								type: 'cond',
+								condition: idnt('X', 43),
+								if: [
+									{
+										type: 'assign',
+										ident: idnt('X', 47),
+										arg: {
+											type: 'operation',
+											op: opr(TKN_TL, 52),
+											args: [idnt('X', 55)]
+										}
+									}
+								],
+								else: [
+									{
+										type: 'assign',
+										ident: idnt('X', 66),
+										arg: {
+											type: 'operation',
+											op: opr(TKN_TL, 71),
+											args: [idnt('X', 74)]
+										}
+									}
+								]
+							},
+						]
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('nested operations', function () {
+		it(`should correctly parse nested cons`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 67),
+				body: [
+					{
+						type: 'assign',
+						ident: idnt('X', 14),
+						arg: {
+							//cons
+							type: 'operation',
+							op: opr(TKN_CONS, 19),
+							args: [
+								{
+									//cons
+									type: 'operation',
+									op: opr(TKN_CONS, 24),
+									args: [
+										//nil
+										idnt('nil', 29),
+										{
+											//cons
+											type: 'operation',
+											op: opr(TKN_CONS, 33),
+											args: [
+												//nil nil
+												idnt('nil', 38),
+												idnt('nil', 42),
+											]
+										}
+									]
+								},
+								{
+									//nil nil
+									type: 'operation',
+									op: opr(TKN_CONS, 46),
+									args: [
+										idnt('nil', 51),
+										idnt('nil', 55),
+									]
+								}
+							]
+						}
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested cons with brackets`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 73),
+				body: [
+					{
+						type: 'assign',
+						ident: idnt('X', 14),
+						arg: {
+							//cons
+							type: 'operation',
+							op: opr(TKN_CONS, 19),
+							args: [
+								{
+									//cons
+									type: 'operation',
+									op: opr(TKN_CONS, 25),
+									args: [
+										//nil
+										idnt('nil', 30),
+										{
+											//cons
+											type: 'operation',
+											op: opr(TKN_CONS, 35),
+											args: [
+												//nil nil
+												idnt('nil', 40),
+												idnt('nil', 44),
+											]
+										}
+									]
+								},
+								{
+									//nil nil
+									type: 'operation',
+									op: opr(TKN_CONS, 51),
+									args: [
+										idnt('nil', 56),
+										idnt('nil', 60),
+									]
+								}
+							]
+						}
+					},
+				]
+			};
+			expect(parser(lexer(
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested hds`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 38),
+				body: [{
+					type: 'assign',
+					ident: idnt('X', 14),
+					arg: {
+						type: 'operation',
+						op: opr(TKN_HD, 19),
+						args: [{
+							type: 'operation',
+							op: opr(TKN_HD, 22),
+							args: [{
+								type: 'operation',
+								op: opr(TKN_HD, 25),
+								args: [idnt('X', 28)]
+							}]
+						}]
+					}
+				}]
+			};
+			expect(parser(lexer(
+				'prog read X { X := hd hd hd X } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should correctly parse nested tls`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				name: idnt('prog', 0),
+				input: idnt('X', 10),
+				output: idnt('X', 38),
+				body: [{
+					type: 'assign',
+					ident: idnt('X', 14),
+					arg: {
+						type: 'operation',
+						op: opr(TKN_TL, 19),
+						args: [{
+							type: 'operation',
+							op: opr(TKN_TL, 22),
+							args: [{
+								type: 'operation',
+								op: opr(TKN_TL, 25),
+								args: [idnt('X', 28)]
+							}]
+						}]
+					}
+				}]
+			};
+			expect(parser(lexer(
+				'prog read X { X := tl tl tl X } write X'
+			))).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
 });
