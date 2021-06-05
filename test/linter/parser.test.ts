@@ -643,11 +643,6 @@ describe('Parser Error Checker', function () {
 					message: `Unexpected token: Expected "write" got "X"`,
 					position: 15,
 				},
-				//TODO: Should this have a separate error message for missing output variable?
-				{
-					message: 'Unexpected end of input: Expected "identifier"',
-					position: 16,
-				}
 			];
 			const res = parser(lexer(
 				'name read X {} X'

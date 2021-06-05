@@ -498,6 +498,42 @@ function _readProgramIntro(state: StateManager): [IDENT_TYPE|null, IDENT_TYPE|nu
 }
 
 /**
+ * Read "write <output>" from the start of the token list.
+ * @param state		The state manager object
+ */
+function _readProgramOutro(state: StateManager): IDENT_TYPE|null {
+	//read the "write" token
+	let write: WHILE_TOKEN = state.next();
+	if (write.type === 'eoi') {
+		//Unexpected end of input
+		state.unexpectedEOI(TKN_WRITE);
+		state.unexpectedEOI('identifier');
+		return null;
+	} else if (write.value === TKN_WRITE) {
+		//Expected value
+	} else if (write.type === 'identifier') {
+		//Assume the "write" token was missed and the output variable was written directly
+		state.unexpectedToken(write.value, TKN_WRITE);
+		return write;
+	} else {
+		//Unknown token
+		state.unexpectedValue(write.type, write.value, TKN_WRITE);
+	}
+
+	//Output variable
+	let output: WHILE_TOKEN = state.next();
+	if (output.type === 'eoi') {
+		state.unexpectedEOI('identifier');
+		return null;
+	} else if (output.type !== 'identifier') {
+		state.unexpectedValue(output.type, output.value, 'identifier');
+		return null;
+	}
+
+	return output;
+}
+
+/**
  * Read the root program structure from the program
  * @param state	Program state object
  */
@@ -507,35 +543,11 @@ function _readProgram(state: StateManager): AST_PROG|null {
 	let [name, input]: [IDENT_TYPE|null, IDENT_TYPE|null] = progIn;
 
 	//Program body
-	let body: AST_CMD[]|null = _readBlock(state);
+	let body: (AST_CMD|null)[]|null = _readBlock(state);
 	if (body === null) return null;
 
-	//TODO: Better error messages for missing "write" cases
-
-	//"write"
-	let write: WHILE_TOKEN|null = state.next();
-	if (write.type === 'eoi') {
-		state.unexpectedEOI(TKN_WRITE);
-		write = null;
-	} else if (write.value === TKN_WRITE) {
-		//Expected value
-	} else if (write.type === 'identifier') {
-		state.unexpectedToken(write.value, TKN_WRITE);
-	} else {
-		//TODO: Change all `state.unexpectedToken` to `state.unexpectedValue(write.type, write.value, TKN_WRITE)`
-		state.unexpectedToken(write.value, TKN_WRITE);
-		write = null;
-	}
-	//Output variable
-	let output: WHILE_TOKEN|null = state.next();
-	if (output.type === 'eoi') {
-		state.unexpectedEOI('identifier');
-		output = null;
-	} else if (output.type !== 'identifier') {
-		//TODO: Change all `state.unexpectedToken` to `state.unexpectedValue(write.type, write.value, TKN_WRITE)`
-		state.unexpectedType(output.value, 'identifier');
-		output = null;
-	}
+	//Parse until the output variable
+	let output: IDENT_TYPE|null = _readProgramOutro(state);
 
 	if (name === null || input === null || output === null) return null;
 
