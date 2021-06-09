@@ -1,4 +1,5 @@
 import {
+	EOI_TYPE,
 	IDENT_TYPE,
 	TKN_ASSGN,
 	TKN_BLOCK_CLS,
@@ -15,11 +16,24 @@ import {
 	TKN_WRITE,
 	WHILE_TOKEN
 } from "../lexer";
-import { AST_CMD, AST_EXPR, AST_PROG, } from "../../types/ast";
+import { AST_CMD, AST_CMD_PARTIAL, AST_EXPR, AST_EXPR_PARTIAL, AST_PROG, AST_PROG_PARTIAL } from "../../types/ast";
 
+/**
+ * Type representing an error message at a position in the input program
+ */
 export type ErrorType = {
 	position: number,
 	message: string,
+}
+
+/**
+ * Internal representation for the result status of an operation.
+ * Provides more information than a null/undefined result.
+ */
+enum ParseStatus {
+	OK,
+	ERROR,
+	EOI,
 }
 
 class ErrorManager {
@@ -175,6 +189,26 @@ class StateManager {
 		return (this._tokens[0] !== undefined) ? this._tokens[0] : this._lastToken;
 	}
 
+	/**
+	 * Read from the token list until one of the expected tokens (or the end of the list) is reached.
+	 * The terminating token (EOI or one of {@code expected}) is not popped from the queue.
+	 * @param expected	Tokens to look for to break the match
+	 */
+	public consumeUntil(...expected: string[]) : WHILE_TOKEN[] {
+		let res = [];
+		let next;
+		while ((next = this.peek()).type !== 'eoi') {
+			for (let e of expected) {
+				if (next.value === e) return res;
+			}
+			res.push(this.next());
+		}
+		return res;
+	}
+
+	//TODO: Write `consumeUntilMatchingParen` which counts opening/closing brackets of different types.
+	//	Should accept a starting bracket as param
+
 	//Errors
 
 	/**
@@ -251,7 +285,15 @@ class StateManager {
 // Parser functions
 // ================
 
-function _readExpr(state: StateManager): AST_EXPR|null {
+/**
+ * Read an expression from the token list
+ * Returns a list containing the parser segment status, and the parsed expression tree
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, AST_EXPR]}			The parsed expression tree
+ * @returns {[ParseStatus.ERROR, AST_EXPR|AST_EXPR_PARTIAL|null]}	The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ * @returns {[ParseStatus.EOI, AST_EXPR|AST_EXPR_PARTIAL|null]}		The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ */
+function _readExpr(state: StateManager): AST_EXPR|AST_EXPR_PARTIAL|null {
 	let first = state.next();
 	//Handle early end of input
 	if (first.type === 'eoi') return null;
@@ -259,7 +301,7 @@ function _readExpr(state: StateManager): AST_EXPR|null {
 	//Support brackets around expressions
 	if (first.value === TKN_PREN_OPN) {
 		//Parse the expression between the brackets
-		const expr: AST_EXPR|null = _readExpr(state);
+		const expr: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
 
 		//Expect a closing parenthesis
 		let close = state.next();
@@ -278,132 +320,237 @@ function _readExpr(state: StateManager): AST_EXPR|null {
 	if (first.type === 'operation') {
 		//Parse `hd` and `tl`
 		if (first.value === TKN_HD || first.value === TKN_TL) {
-			const val: AST_EXPR|null = _readExpr(state);
-			if (val === null) return null;
-			return {
-				type: 'operation',
-				op: first,
-				args: [ val ]
-			};
+			const arg: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
+			if (arg === null) {
+				return {
+					type: 'operation',
+					complete: false,
+					op: first,
+					args: [arg]
+				};
+			} else if (arg.type === 'identifier' || arg.complete) {
+				//The argument is an identifier or complete operation
+				return {
+					type: 'operation',
+					complete: true,
+					op: first,
+					args: [arg]
+				};
+			} else {
+				//The argument is an incomplete operation
+				return {
+					type: 'operation',
+					complete: false,
+					op: first,
+					args: [arg]
+				};
+			}
 		}
 
 		//Parse `cons`
-		const left: AST_EXPR|null = _readExpr(state);
-		const right: AST_EXPR|null = _readExpr(state);
-		//TODO: Is this the best place? May allow better linting
-		if (left == null || right === null) return null;
-		return {
-			type: 'operation',
-			op: first,
-			args: [
-				left,
-				right
-			]
-		};
+		const left: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
+		const right: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
+		if (!left || !right || (left.type === 'operation' && !left.complete) || (right.type === 'operation' && !right.complete)) {
+			return {
+				type: 'operation',
+				complete: false,
+				op: first,
+				args: [
+					left,
+					right
+				]
+			};
+		} else {
+			return {
+				type: 'operation',
+				complete: true,
+				op: first,
+				args: [
+					left,
+					right
+				]
+			};
+		}
 	} else if (first.type === 'identifier') {
 		return first;
+	} else {
+		state.unexpectedType(first.type, 'operation', 'identifier');
+		return null;
 	}
-
-	state.unexpectedType(first.type, 'operation', 'identifier');
-	return null;
 }
 
 /**
- * Read the contents of an else block
- * @param state
+ * Read the contents of an else block from the token list.
+ * Returns a list containing the parser segment status, and list of parsed command trees
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, (AST_CMD)[]]}			List of each statement in the else block
+ * @returns {[ParseStatus.ERROR, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	List of each statement in the else block, if readable, {@code null} where not possible
+ * @returns {[ParseStatus.EOI, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	List of each statement in the else block, if readable, {@code null} where not possible
  */
-function _readElse(state: StateManager): AST_CMD[]|null {
+function _readElse(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] {
 	let peek = state.peek();
 	if (peek.type === 'eoi') {
-		return null;
+		//Unexpected end of input
+		state.unexpectedEOI(TKN_BLOCK_CLS);
+		return [ParseStatus.EOI, []];
 	} else if (peek.value === TKN_ELSE) {
+		//An else statement was provided
 		state.next();
 		return _readBlock(state);
 	} else {
-		return [];
+		//Assume there wasn't meant to be an else statement
+		//I.e. treat it the same as `else {}`
+		return [ParseStatus.OK, []];
 	}
 }
 
 /**
- * Read a statement from the program token list.
- * If(-else)/while/assigment operations
- * @param state	Program state object
+ * Read a statement (if/if-else/while/assignment) from the program token list.
+ * Returns a list containing the parser segment status, and the parsed command tree
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, AST_CMD]}			The parsed statement
+ * @returns {[ParseStatus.ERROR, AST_CMD|AST_CMD_PARTIAL|null]}	The parsed statement with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ * @returns {[ParseStatus.EOI, AST_CMD|AST_CMD_PARTIAL|null]}	The parsed statement with {@code null} where information can't be parsed, or {@code null} if it is unreadable
  */
-function _readStmt(state: StateManager): AST_CMD|null {
+function _readStmt(state: StateManager): [ParseStatus, AST_CMD|AST_CMD_PARTIAL|null] {
 	let first = state.next();
 	//Handle early end of input
 	if (first.type === 'eoi') {
-		// return first;
-		return null;
+		return [ParseStatus.EOI, null];
 	}
 
 	if (first.value === TKN_IF) {
 		//First attempt to read the condition expression
-		let cond = _readExpr(state);
+		let cond: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
 		//Then read the conditional body
-		let ifBlock: AST_CMD[]|null = _readBlock(state);
+		let [ifState, ifBlock]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readBlock(state);
 		//And the 'else' body
-		let elseBlock: AST_CMD[]|null = _readElse(state);
-		//Return `null` if any of the segments couldn't be parsed
-		if (cond === null || ifBlock === null || elseBlock === null) return null;
-		//Return the produced AST node
-		return {
-			type: 'cond',
-			condition: cond,
-			if: ifBlock,
-			else: elseBlock,
-		};
+		let [elseState, elseBlock]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readElse(state);
+		//Return success if all the segments were parsed correctly
+		if (cond !== null && (cond.type === 'identifier' || cond.complete) && ifState === ParseStatus.OK && elseState === ParseStatus.OK) {
+			//Return the produced AST node
+			return [
+				ParseStatus.OK,
+				{
+					type: 'cond',
+					complete: true,
+					condition: cond as AST_EXPR,
+					if: ifBlock as AST_CMD[],
+					else: elseBlock as AST_CMD[],
+				}
+			];
+		}
+		return [
+			ParseStatus.ERROR,
+			{
+				type: 'cond',
+				complete: false,
+				condition: cond,
+				if: ifBlock,
+				else: elseBlock,
+			}
+		];
 	} else if (first.value === TKN_WHILE) {
 		let cond = _readExpr(state);
-		let body: AST_CMD[]|null = _readBlock(state);
-		if (body === null || cond === null) return null;
-		return {
-			type: 'loop',
-			condition: cond,
-			body: body,
-		};
+		let [bodyState, body]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readBlock(state);
+		if (bodyState === ParseStatus.OK && cond !== null) {
+			return [
+				ParseStatus.OK,
+				{
+					type: 'loop',
+					complete: true,
+					condition: cond as AST_EXPR,
+					body: body as AST_CMD[],
+				}
+			];
+		} else {
+			return [
+				(bodyState === ParseStatus.EOI) ? ParseStatus.EOI : ParseStatus.ERROR,
+				{
+					type: 'loop',
+					complete: false,
+					condition: cond,
+					body: body,
+				}
+			];
+		}
 	} else if (first.type === 'identifier') {
 		state.consume(TKN_ASSGN);
-		const val: AST_EXPR|null = _readExpr(state);
-		if (val === null) return null;
-		return {
-			type: 'assign',
-			ident: first,
-			arg: val
+		const val: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
+		if (val !== null && (val.type === 'identifier' || val.complete)) {
+			return [
+				ParseStatus.OK,
+				{
+					type: 'assign',
+					complete: true,
+					ident: first,
+					arg: val
+				}
+			];
 		}
+		return [
+			ParseStatus.ERROR,
+			{
+				type: 'assign',
+				complete: false,
+				ident: first,
+				arg: val
+			}
+		];
 	}
 	state.unexpectedToken(undefined, TKN_WHILE, TKN_IF, 'assignment');
-	return null;
+	return [ParseStatus.ERROR, null];
 }
 
 /**
- * Read a block of code from the token list
- * @param state	Program state object
+ * Read a block of statements from the token list.
+ * Returns a list containing the parser segment status, and the list of the parsed command trees.
+ * See also: {@link _readStmt}
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, (AST_CMD)[]]}			List of each statement in the block
+ * @returns {[ParseStatus.ERROR, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	List of each statement, if readable, {@code null} where not possible
+ * @returns {[ParseStatus.EOI, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	List of each statement, if readable, {@code null} where not possible
  */
-function _readBlock(state: StateManager): AST_CMD[]|null {
+function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] {
 	state.consume(TKN_BLOCK_OPN);
 
 	const first = state.peek();
 	if (first.type === 'eoi') {
 		state.next();
 		state.unexpectedEOI(TKN_BLOCK_CLS);
-		return null;
-	} else if (first.value === TKN_BLOCK_CLS) {
-		//Empty loop body
-		state.next();
-		return [];
+		return [ParseStatus.EOI, []];
 	}
 
-	let res: AST_CMD[] = [];
+	if (first.value === TKN_BLOCK_CLS) {
+		//Empty loop body
+		state.next();
+		return [ParseStatus.OK, []];
+	}
+
+	//TODO: add a special error message for an extra ';' at the end of the last statement in the block
+
+	let res: (AST_CMD|AST_CMD_PARTIAL|null)[] = [];
+	let status: ParseStatus = ParseStatus.OK;
 	while (true) {
-		const statement: AST_CMD|null = _readStmt(state);
-		if (statement !== null) res.push(statement);
+		const [statementStatus, statement]: [ParseStatus, AST_CMD|AST_CMD_PARTIAL|null] = _readStmt(state);
+		res.push(statement);
+
+		if (statementStatus === ParseStatus.EOI) {
+			//On end of input
+			status = statementStatus;
+			break;
+		} else if (statementStatus === ParseStatus.ERROR) {
+			//On parsing error, consume the input until a separator token is reached
+			//Then start afresh
+			state.consumeUntil(TKN_BLOCK_CLS, TKN_SEP);
+			status = ParseStatus.ERROR;
+		}
 
 		let next: WHILE_TOKEN = state.next();
 		if (next.type == 'eoi') {
 			state.unexpectedEOI(TKN_SEP, TKN_BLOCK_CLS);
-			return null;
-			// return res;
+			status = ParseStatus.EOI;
+			break;
 		} else if (next.value == TKN_SEP) {
 			//Move on to the next statement
 		} else if (next.value == TKN_BLOCK_CLS) {
@@ -413,45 +560,50 @@ function _readBlock(state: StateManager): AST_CMD[]|null {
 			//TODO: Handle missing separator
 			//Report error expecting a separator or a block close
 			state.unexpectedToken(next.value, TKN_SEP, TKN_BLOCK_CLS);
+			status = ParseStatus.ERROR;
 		}
 	}
 
-	return res;
+	return [status, res];
 }
 
 /**
  * Read the "<name> read <input>" from the start of the token list.
- * @param state		The state manager object
+ * Returns a list containing the parser segment status, the program name, and the input variable.
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, IDENT_TYPE, IDENT_TYPE]}			The program name, and input variable
+ * @returns {[ParseStatus.ERROR, IDENT_TYPE|null, IDENT_TYPE|null]}	The program name and input variable if readable, {@code null} for each otherwise
+ * @returns {[ParseStatus.EOI, IDENT_TYPE|null, IDENT_TYPE|null]}	The program name and input variable if readable, {@code null} for each otherwise
  */
-function _readProgramIntro(state: StateManager): [IDENT_TYPE|null, IDENT_TYPE|null]|null {
-	function _readInput(state: StateManager): IDENT_TYPE|null|undefined {
+function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, IDENT_TYPE|null] {
+	function _readInput(state: StateManager): [ParseStatus, IDENT_TYPE|null] {
 		const input = state.peek();
 		if (input.type === 'eoi') {
 			state.next();
 			//TODO: Better EOI error
 			state.addError('Unexpected end of input: Missing input variable');
-			return undefined;
+			return [ParseStatus.EOI, null];
 		} else if (input.value === TKN_BLOCK_OPN) {
 			state.errorManager.addError(input.pos, 'Missing input variable');
-			return null;
+			return [ParseStatus.ERROR, null];
 		} else if (input.type === 'identifier') {
 			state.next();
 			//Acceptable token
-			return input;
+			return [ParseStatus.OK, input];
 		} else {
 			state.next();
 			//Not an identifier
-			return null;
+			return [ParseStatus.ERROR, null];
 		}
 	}
 
-	function _readRead(state: StateManager): IDENT_TYPE|null|undefined {
+	function _readRead(state: StateManager): [ParseStatus, IDENT_TYPE|null] {
 		//"read"
 		const read = state.peek();
 		if (read.type === 'eoi') {
 			state.next();
 			state.unexpectedEOI(TKN_READ);
-			return undefined;
+			return [ParseStatus.EOI, null];
 		} else if (read.value === TKN_READ) {
 			state.next();
 			//Expected
@@ -459,12 +611,13 @@ function _readProgramIntro(state: StateManager): [IDENT_TYPE|null, IDENT_TYPE|nu
 		} else if (read.value === TKN_BLOCK_OPN) {
 			//The program opens directly onto the block
 			state.errorManager.unexpectedToken(read.pos, undefined, TKN_READ);
-			return null;
+			return [ParseStatus.ERROR, null];
 		} else {
 			state.next();
 			state.unexpectedToken(read.value, TKN_READ);
-			//TODO: What to return here?
-			return null;
+			if (read.type === 'identifier')
+				return [ParseStatus.ERROR, read];
+			return [ParseStatus.ERROR, null];
 		}
 	}
 
@@ -473,93 +626,133 @@ function _readProgramIntro(state: StateManager): [IDENT_TYPE|null, IDENT_TYPE|nu
 	if (name.type === 'eoi') {
 		state.next();
 		state.addError('Unexpected end of input: Missing program name');
-		return null;
+		return [ParseStatus.EOI, null, null];
 	} else if (name.value === TKN_READ) {
 		state.next();
 		//The program name was missed
 		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name');
-		let inputVar = _readInput(state);
-		if (inputVar === undefined) return null;
-		return [null, inputVar];
+		let [inputStatus, input] = _readInput(state);
+		if (inputStatus === ParseStatus.OK) {
+			return [ParseStatus.OK, null, input];
+		} else {
+			return [ParseStatus.ERROR, null, input];
+		}
 	} else if (name.value === TKN_BLOCK_OPN) {
 		//The program opens directly onto the block
 		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name');
 		state.errorManager.unexpectedToken(name.pos, undefined, TKN_READ);
-		return [null, null];
+		return [ParseStatus.ERROR, null, null];
 	} else {
 		state.next();
-		let inputVar = _readRead(state);
-		if (inputVar === undefined) return null;
+		let [inputStatus, inputVar]: [ParseStatus, IDENT_TYPE|null] = _readRead(state);
 		//A program name wasn't provided
-		if (name.type !== 'identifier') return [null, inputVar];
-		//Acceptable token
-		return [name as IDENT_TYPE, inputVar];
+		if (name.type !== 'identifier') return [ParseStatus.ERROR, null, inputVar];
+		if (inputStatus === ParseStatus.OK) {
+			//Acceptable token
+			return [ParseStatus.OK, name as IDENT_TYPE, inputVar];
+		}
+		return [inputStatus, name as IDENT_TYPE, inputVar];
 	}
 }
 
 /**
  * Read "write <output>" from the start of the token list.
- * @param state		The state manager object
+ * Returns a list containing the parser segment status, and the output variable.
+ * @param state		The parser state manager object
+ * @returns {[ParseStatus.OK, IDENT_TYPE]}			The output variable
+ * @returns {[ParseStatus.ERROR, IDENT_TYPE|null]}	The output variable, if readable, {@code null} otherwise
+ * @returns {[ParseStatus.EOI, IDENT_TYPE|null]}	The output variable, if readable, {@code null} otherwise
  */
-function _readProgramOutro(state: StateManager): IDENT_TYPE|null {
+function _readProgramOutro(state: StateManager): [ParseStatus, IDENT_TYPE|null] {
+	let err: ParseStatus = ParseStatus.OK;
+	let output: IDENT_TYPE|null = null;
+
 	//read the "write" token
 	let write: WHILE_TOKEN = state.next();
 	if (write.type === 'eoi') {
 		//Unexpected end of input
 		state.unexpectedEOI(TKN_WRITE);
-		state.unexpectedEOI('identifier');
-		return null;
+		return [ParseStatus.EOI, null];
 	} else if (write.value === TKN_WRITE) {
 		//Expected value
 	} else if (write.type === 'identifier') {
 		//Assume the "write" token was missed and the output variable was written directly
 		state.unexpectedToken(write.value, TKN_WRITE);
-		return write;
+		err = ParseStatus.ERROR;
+		output = write;
 	} else {
 		//Unknown token
 		state.unexpectedValue(write.type, write.value, TKN_WRITE);
+		err = ParseStatus.ERROR;
 	}
 
 	//Output variable
-	let output: WHILE_TOKEN = state.next();
-	if (output.type === 'eoi') {
+	let outputVar: WHILE_TOKEN = state.next();
+	if (outputVar.type === 'eoi') {
 		state.unexpectedEOI('identifier');
-		return null;
-	} else if (output.type !== 'identifier') {
-		state.unexpectedValue(output.type, output.value, 'identifier');
-		return null;
+		err = ParseStatus.EOI;
+	} else if (outputVar.type !== 'identifier') {
+		state.unexpectedValue(outputVar.type, outputVar.value, 'identifier');
+		err = ParseStatus.ERROR;
+	} else {
+		output = outputVar;
 	}
 
-	return output;
+	return [err, output];
 }
 
 /**
- * Read the root program structure from the program
- * @param state	Program state object
+ * Read the root structure of a program from the token list
+ * This is the {@code <prog> read <in> { ... } write <out>}
+ * @param state		The parser state manager object
+ * @returns AST_PROG			When a program was parsed without issue
+ * @returns AST_PROG_PARTIAL	When at least one error was encountered with the program
  */
-function _readProgram(state: StateManager): AST_PROG|null {
-	let progIn: null|[IDENT_TYPE|null, IDENT_TYPE|null] = _readProgramIntro(state);
-	if (progIn === null) return null;
-	let [name, input]: [IDENT_TYPE|null, IDENT_TYPE|null] = progIn;
+function _readProgram(state: StateManager): AST_PROG|AST_PROG_PARTIAL {
+	let bodyStatus: ParseStatus = ParseStatus.OK;
+	let outputStatus: ParseStatus = ParseStatus.OK;
+	let body: (AST_CMD|AST_CMD_PARTIAL|null)[] = [];
+	let output: IDENT_TYPE|null = null;
 
-	//Program body
-	let body: (AST_CMD|null)[]|null = _readBlock(state);
-	if (body === null) return null;
+	//Attempt to read the start of the program ("<name> read <in>")
+	//Separate into the program name and input variable name
+	let [progInStatus, name, input]: [ParseStatus, IDENT_TYPE|null, IDENT_TYPE|null] = _readProgramIntro(state);
 
-	//Parse until the output variable
-	let output: IDENT_TYPE|null = _readProgramOutro(state);
-
-	if (name === null || input === null || output === null) return null;
-
-	//Expect that the token list ends here
-	const final = state.next();
-	if (final.type !== 'eoi') {
-		state.unexpectedToken(final.value, 'end of input');
+	//Don't attempt to parse the program if the input has already ended
+	if (progInStatus !== ParseStatus.EOI) {
+		if (state.peek().type !== 'eoi') {
+			//Read the program body
+			[bodyStatus, body] = _readBlock(state);
+			if (bodyStatus !== ParseStatus.EOI) {
+				//Read the outro of the program ("write <out>")
+				[outputStatus, output] = _readProgramOutro(state);
+				//Expect that the token list ends here
+				const final = state.next();
+				if (final.type !== 'eoi') {
+					state.unexpectedToken(final.value, 'end of input');
+				}
+			}
+		} else {
+			state.unexpectedEOI(TKN_BLOCK_OPN);
+		}
 	}
 
-	//Return the produced program
+	//Mark the produced AST as complete if all the subtrees are valid
+	if (name && input && output && (bodyStatus === ParseStatus.OK) && (progInStatus === ParseStatus.OK) && (outputStatus === ParseStatus.OK)) {
+		//Return the produced program
+		return {
+			type: 'program',
+			complete: true,
+			input,
+			output,
+			name,
+			body: body as AST_CMD[],
+		}
+	}
+	//Otherwise mark it as incomplete
 	return {
 		type: 'program',
+		complete: false,
 		input,
 		output,
 		name,
@@ -569,11 +762,11 @@ function _readProgram(state: StateManager): AST_PROG|null {
 
 /**
  * Parse a token list (from the lexer) to an abstract syntax tree.
- * The token list must end in an EOI token for the parser to function.
+ * The token list must end in an EOI token (@link EOI_TYPE} for the parser to function.
  * @param tokens	The program tokens to parse
  * @return	An abstract syntax tree representing the program, and a list of all the errors in the program
  */
-export default function parser(tokens: WHILE_TOKEN[]) : [AST_PROG|null, ErrorType[]] {
+export default function parser(tokens: WHILE_TOKEN[]) : [AST_PROG|AST_PROG_PARTIAL, ErrorType[]] {
 	//Ensure the token list ends with an EOI token
 	if (!tokens.length || tokens[tokens.length - 1].type !== 'eoi') {
 		throw new Error(`The token list must end in an End of Input token`);
@@ -582,7 +775,7 @@ export default function parser(tokens: WHILE_TOKEN[]) : [AST_PROG|null, ErrorTyp
 	//Make a state manager object for use in the parser
 	const stateManager = new StateManager(tokens);
 	//Parse the program
-	const prog: AST_PROG|null = _readProgram(stateManager);
+	const prog: AST_PROG|AST_PROG_PARTIAL = _readProgram(stateManager);
 	//Return the program and any discovered errors
 	return [prog, stateManager.errors];
 }
