@@ -86,21 +86,9 @@ export interface UNKNOWN_TYPE {
 }
 
 /**
- * Represents the end of the input file
- */
-export interface EOI_TYPE {
-	type: 'eoi',
-	pos: number,
-}
-
-/**
  * The type of the elements of the token list returned by the lexer
  */
-export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | EOI_TYPE | UNKNOWN_TYPE;
-/**
- * Same as {@link WHILE_TOKEN} but without {@link EOI_TYPE}.
- */
-export type INT_WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
+export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
 
 /**
  * Read an identifier (variable/program name) from the start of the program string.
@@ -118,7 +106,7 @@ function read_identifier(program: string): string|null {
  * @param program	The program string
  * @param pos
  */
-function read_next_token(program: string, pos: number): INT_WHILE_TOKEN|null {
+function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
 	//Attempt to read a symbol
 	for (let sym of SYMBOL_LIST) {
 		//Check each symbol against the start of the program string
@@ -230,12 +218,6 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		pos += token.value.length;
 		program = program.substring(token.value.length)
 	}
-
-	//Add an end-of-input marker
-	res.push({
-		type: 'eoi',
-		pos: pos
-	});
 	//Return the produced token list
 	return res;
 }

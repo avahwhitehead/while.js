@@ -2,7 +2,6 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import lexer, {
-	EOI_TYPE,
 	EXPR_TOKEN,
 	EXPR_TYPE,
 	IDENT_TYPE, OP_TOKEN, OP_TYPE,
@@ -81,12 +80,6 @@ function ukwn(t: string, pos: number): UNKNOWN_TYPE {
 		pos
 	};
 }
-function eoi(pos: number): EOI_TYPE {
-	return {
-		type: 'eoi',
-		pos
-	};
-}
 
 describe('Lexer', function () {
 	describe(`atoms`, function () {
@@ -94,8 +87,7 @@ describe('Lexer', function () {
 			it(`should accept symbol '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						sym(atom, 0),
-						eoi(atom.length)
+						sym(atom, 0)
 					]
 				);
 			});
@@ -104,8 +96,7 @@ describe('Lexer', function () {
 			it(`should accept expression '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						expr(atom, 0),
-						eoi(atom.length)
+						expr(atom, 0)
 					]
 				);
 			});
@@ -114,8 +105,7 @@ describe('Lexer', function () {
 			it(`should accept operation '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						opr(atom, 0),
-						eoi(atom.length)
+						opr(atom, 0)
 					]
 				);
 			});
@@ -127,8 +117,7 @@ describe('Lexer', function () {
 			it(`should accept identifier '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						idnt(atom, 0),
-						eoi(atom.length)
+						idnt(atom, 0)
 					]
 				);
 			});
@@ -140,8 +129,7 @@ describe('Lexer', function () {
 			it(`should reject '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						ukwn(atom, 0),
-						eoi(1)
+						ukwn(atom, 0)
 					]
 				);
 			});
@@ -151,8 +139,7 @@ describe('Lexer', function () {
 				it(`should reject '${atom}'`, function () {
 					expect(lexer(atom)).to.deep.equal(
 						[
-							ukwn(atom, 0),
-							eoi(1)
+							ukwn(atom, 0)
 						]
 					);
 				});
@@ -173,8 +160,7 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_OPN, 13),
 						sym(TKN_BLOCK_CLS, 14),
 						expr(TKN_WRITE, 16),
-						idnt('X', 22),
-						eoi(23)
+						idnt('X', 22)
 					]
 				);
 			});
@@ -196,8 +182,7 @@ describe('Lexer', function () {
 							idnt('X', 28),
 						sym(TKN_BLOCK_CLS, 30),
 						expr(TKN_WRITE, 32),
-						idnt('Y', 38),
-						eoi(39)
+						idnt('Y', 38)
 					]
 				);
 			});
@@ -232,8 +217,7 @@ describe('Lexer', function () {
 							idnt('Y', 47),
 						sym(TKN_BLOCK_CLS, 49),
 						expr(TKN_WRITE, 51),
-						idnt('Y', 57),
-						eoi(58)
+						idnt('Y', 57)
 					]
 				);
 			});
@@ -258,8 +242,7 @@ describe('Lexer', function () {
 								//Nothing here
 							sym(TKN_BLOCK_CLS, 69),
 							expr(TKN_WRITE, 71),
-							idnt('X', 77),
-							eoi(78)
+							idnt('X', 77)
 						]
 					);
 				});
@@ -285,8 +268,7 @@ describe('Lexer', function () {
 								idnt('X', 23),
 							sym(TKN_BLOCK_CLS, 47),
 							expr(TKN_WRITE, 49),
-							idnt('X', 55),
-							eoi(56)
+							idnt('X', 55)
 						]
 					);
 				});
@@ -312,8 +294,7 @@ describe('Lexer', function () {
 								idnt('X', 47),
 							sym(TKN_BLOCK_CLS, 48),
 							expr(TKN_WRITE, 50),
-							idnt('X', 56),
-							eoi(57)
+							idnt('X', 56)
 						]
 					);
 				});
@@ -340,8 +321,7 @@ describe('Lexer', function () {
 								//Nothing here
 							sym(TKN_BLOCK_CLS, 78),
 							expr(TKN_WRITE, 80),
-							idnt('X', 86),
-							eoi(87)
+							idnt('X', 86)
 						]
 					);
 				});
@@ -354,14 +334,14 @@ describe('Lexer', function () {
 					expect(lexer(
 						'//An empty file'
 					)).to.deep.equal(
-						[eoi(15)]
+						[]
 					);
 				});
 				it('inline comment', function () {
 					expect(lexer(
 						'(*An empty file*)'
 					)).to.deep.equal(
-						[eoi(2+13+2)]
+						[]
 					);
 				});
 				it('multiline comment', function () {
@@ -370,7 +350,7 @@ describe('Lexer', function () {
 						'An empty file\n' +
 						'*)\n'
 					)).to.deep.equal(
-						[eoi(3+14+3)]
+						[]
 					);
 				});
 			});

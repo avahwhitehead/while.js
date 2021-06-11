@@ -1,5 +1,4 @@
 import {
-	EOI_TYPE,
 	IDENT_TYPE,
 	TKN_ASSGN,
 	TKN_BLOCK_CLS,
@@ -91,19 +90,14 @@ class ErrorManager {
 class StateManager {
 	private readonly _errorManager: ErrorManager;
 	private readonly _tokens: WHILE_TOKEN[];
-	private _lastToken: WHILE_TOKEN;
-
-	private get _pos(): number {
-		return this._lastToken.pos || 0;
-	}
+	private _pos: number;
+	private _lastToken: WHILE_TOKEN|undefined;
 
 	public constructor(tokens: WHILE_TOKEN[]) {
 		this._errorManager = new ErrorManager();
 		this._tokens = tokens;
-		this._lastToken = {
-			type: 'eoi',
-			pos: 0,
-		};
+		this._lastToken = undefined;
+		this._pos = 0;
 	}
 
 	/**
@@ -123,70 +117,49 @@ class StateManager {
 	}
 
 	/**
-	 * Pop a token from the start of the token list.
-	 * Optionally, provide a list of the acceptable tokens.
-	 * Automatically produces an error if the token list ends prematurely, or if the token is an unexpected value.
+	 * Pop a token from the start of the token list, and expect it to match one of the provided expected tokens..
+	 * Automatically produces an error if the token is an unexpected value or if the token list ends prematurely.
 	 * @param expected	List of the tokens to accept here.
 	 * 					Empty for any token.
+	 * @returns {[ParseStatus.OK, WHILE_TOKEN]}	The next token value from the list, which is one of {@code expected}
+	 * @returns {[ParseStatus.ERROR, WHILE_TOKEN]}	The next token value from the list, which is not one of {@code expected}
+	 * @returns {[ParseStatus.EOI, null]}	No return token as the list is empty
 	 */
-	public consume(...expected: string[]): WHILE_TOKEN|null {
+	public expect(...expected: string[]): [ParseStatus, WHILE_TOKEN|null] {
 		const first = this._next();
 		//Unexpected end of token list
-		if (first.type === 'eoi') {
+		if (first === null) {
 			this.unexpectedEOI(...expected);
-			return null;
+			return [ParseStatus.EOI, null];
 		}
 
 		//Allow any token if no expected was provided
-		if (expected.length === 0) return first;
+		if (expected.length === 0) return [ParseStatus.OK, first];
 		//The token matches the expected value
 		for (let exp of expected) {
-			if (first.value === exp) return first;
+			if (first.value === exp) return [ParseStatus.OK, first];
 		}
 
 		//The token is unexpected - add an error
 		this.unexpectedToken(first.value, ...expected);
-		return null;
-	}
-
-	/**
-	 * Same as {@link consume} but for types of token instead of values.
-	 * @param expected	List of the token types to accept here.
-	 * 					Empty for any type.
-	 */
-	public consumeType(...expected: ('symbol'|'expression'|'identifier'|'operation'|'unknown')[]): WHILE_TOKEN|null {
-		const first = this._next();
-		//Unexpected end of token list
-		if (first.type === 'eoi') {
-			this.unexpectedEOI(...expected);
-			return first;
-		}
-
-		//Allow any token if no expected was provided
-		if (expected.length === 0) return first;
-		//The token matches the expected value
-		for (let exp of expected) {
-			if (first.type === exp) return first;
-		}
-
-		//The token is unexpected - add an error
-		this.unexpectedValue('type', first.value, ...expected);
-		return null;
+		return [ParseStatus.ERROR, first];
 	}
 
 	/**
 	 * Get the next token in the token list and remove from the queue.
 	 */
-	public next(): WHILE_TOKEN {
+	public next(): WHILE_TOKEN|null {
 		return this._next();
 	}
 
 	/**
 	 * Get the next token in the token list without removing from the queue.
-	 * @return {WHILE_TOKEN} 	The first token in the list, or the the last returned token (an EOI) if the list is empty.
+	 * @return {WHILE_TOKEN} 	The next token in the list
+	 * @return {null} 			If the list is empty.
 	 */
-	public peek(): WHILE_TOKEN {
-		return (this._tokens[0] !== undefined) ? this._tokens[0] : this._lastToken;
+	public peek(): WHILE_TOKEN|null {
+		if (this._tokens.length === 0) return null;
+		return this._tokens[0];
 	}
 
 	/**
@@ -197,11 +170,11 @@ class StateManager {
 	public consumeUntil(...expected: string[]) : WHILE_TOKEN[] {
 		let res = [];
 		let next;
-		while ((next = this.peek()).type !== 'eoi') {
+		while ((next = this.next()) !== null) {
 			for (let e of expected) {
 				if (next.value === e) return res;
 			}
-			res.push(this.next());
+			res.push(next);
 		}
 		return res;
 	}
@@ -265,17 +238,19 @@ class StateManager {
 	//Internal util methods
 	/**
 	 * Pop and return the next token from the queue, and update the position counter.
-	 * When the list is empty, the last token (an EOI) is returned instead.
-	 * @private
+	 * @returns {WHILE_TOKEN}	The next token in the list
+	 * @returns {null} 			If the token list is empty
 	 */
-	private _next(): WHILE_TOKEN {
+	private _next(): WHILE_TOKEN|null {
 		//Read the next token in the list
 		const first = this._tokens.shift() || null;
 		//Increment the position counter
-		if (first === null) {
-			return this._lastToken;
+		if (first !== null) {
+			this._pos = first.pos;
+			this._lastToken = first;
+		} else {
+			this._pos += this._lastToken?.value.length || 0;
 		}
-		this._lastToken = first;
 		//Return the token
 		return first;
 	}
@@ -296,7 +271,7 @@ class StateManager {
 function _readExpr(state: StateManager): AST_EXPR|AST_EXPR_PARTIAL|null {
 	let first = state.next();
 	//Handle early end of input
-	if (first.type === 'eoi') return null;
+	if (first === null) return null;
 
 	//Support brackets around expressions
 	if (first.value === TKN_PREN_OPN) {
@@ -305,7 +280,7 @@ function _readExpr(state: StateManager): AST_EXPR|AST_EXPR_PARTIAL|null {
 
 		//Expect a closing parenthesis
 		let close = state.next();
-		if (close.type === 'eoi') {
+		if (close === null) {
 			state.unexpectedEOI(TKN_PREN_CLS);
 		} else if (close.value === TKN_PREN_CLS) {
 			//Brackets match
@@ -389,7 +364,7 @@ function _readExpr(state: StateManager): AST_EXPR|AST_EXPR_PARTIAL|null {
  */
 function _readElse(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] {
 	let peek = state.peek();
-	if (peek.type === 'eoi') {
+	if (peek === null) {
 		//Unexpected end of input
 		state.unexpectedEOI(TKN_BLOCK_CLS);
 		return [ParseStatus.EOI, []];
@@ -415,7 +390,7 @@ function _readElse(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|
 function _readStmt(state: StateManager): [ParseStatus, AST_CMD|AST_CMD_PARTIAL|null] {
 	let first = state.next();
 	//Handle early end of input
-	if (first.type === 'eoi') {
+	if (first === null) {
 		return [ParseStatus.EOI, null];
 	}
 
@@ -475,7 +450,7 @@ function _readStmt(state: StateManager): [ParseStatus, AST_CMD|AST_CMD_PARTIAL|n
 			];
 		}
 	} else if (first.type === 'identifier') {
-		state.consume(TKN_ASSGN);
+		state.expect(TKN_ASSGN);
 		const val: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state);
 		if (val !== null && (val.type === 'identifier' || val.complete)) {
 			return [
@@ -512,10 +487,10 @@ function _readStmt(state: StateManager): [ParseStatus, AST_CMD|AST_CMD_PARTIAL|n
  * @returns {[ParseStatus.EOI, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	List of each statement, if readable, {@code null} where not possible
  */
 function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] {
-	state.consume(TKN_BLOCK_OPN);
+	state.expect(TKN_BLOCK_OPN);
 
-	const first = state.peek();
-	if (first.type === 'eoi') {
+	const first: WHILE_TOKEN|null = state.peek();
+	if (first === null) {
 		state.next();
 		state.unexpectedEOI(TKN_BLOCK_CLS);
 		return [ParseStatus.EOI, []];
@@ -546,8 +521,8 @@ function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL
 			status = ParseStatus.ERROR;
 		}
 
-		let next: WHILE_TOKEN = state.next();
-		if (next.type == 'eoi') {
+		let next: WHILE_TOKEN|null = state.next();
+		if (next === null) {
 			state.unexpectedEOI(TKN_SEP, TKN_BLOCK_CLS);
 			status = ParseStatus.EOI;
 			break;
@@ -577,8 +552,8 @@ function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL
  */
 function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, IDENT_TYPE|null] {
 	function _readInput(state: StateManager): [ParseStatus, IDENT_TYPE|null] {
-		const input = state.peek();
-		if (input.type === 'eoi') {
+		const input: WHILE_TOKEN|null = state.peek();
+		if (input === null) {
 			state.next();
 			//TODO: Better EOI error
 			state.addError('Unexpected end of input: Missing input variable');
@@ -599,8 +574,8 @@ function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, 
 
 	function _readRead(state: StateManager): [ParseStatus, IDENT_TYPE|null] {
 		//"read"
-		const read = state.peek();
-		if (read.type === 'eoi') {
+		const read: WHILE_TOKEN|null = state.peek();
+		if (read === null) {
 			state.next();
 			state.unexpectedEOI(TKN_READ);
 			return [ParseStatus.EOI, null];
@@ -622,8 +597,8 @@ function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, 
 	}
 
 	//Program name
-	let name: WHILE_TOKEN = state.peek();
-	if (name.type === 'eoi') {
+	let name: WHILE_TOKEN|null = state.peek();
+	if (name === null) {
 		state.next();
 		state.addError('Unexpected end of input: Missing program name');
 		return [ParseStatus.EOI, null, null];
@@ -668,8 +643,8 @@ function _readProgramOutro(state: StateManager): [ParseStatus, IDENT_TYPE|null] 
 	let output: IDENT_TYPE|null = null;
 
 	//read the "write" token
-	let write: WHILE_TOKEN = state.next();
-	if (write.type === 'eoi') {
+	let write: WHILE_TOKEN|null = state.next();
+	if (write === null) {
 		//Unexpected end of input
 		state.unexpectedEOI(TKN_WRITE);
 		return [ParseStatus.EOI, null];
@@ -687,8 +662,8 @@ function _readProgramOutro(state: StateManager): [ParseStatus, IDENT_TYPE|null] 
 	}
 
 	//Output variable
-	let outputVar: WHILE_TOKEN = state.next();
-	if (outputVar.type === 'eoi') {
+	let outputVar: WHILE_TOKEN|null = state.next();
+	if (outputVar === null) {
 		state.unexpectedEOI('identifier');
 		err = ParseStatus.EOI;
 	} else if (outputVar.type !== 'identifier') {
@@ -720,20 +695,16 @@ function _readProgram(state: StateManager): AST_PROG|AST_PROG_PARTIAL {
 
 	//Don't attempt to parse the program if the input has already ended
 	if (progInStatus !== ParseStatus.EOI) {
-		if (state.peek().type !== 'eoi') {
-			//Read the program body
-			[bodyStatus, body] = _readBlock(state);
-			if (bodyStatus !== ParseStatus.EOI) {
-				//Read the outro of the program ("write <out>")
-				[outputStatus, output] = _readProgramOutro(state);
-				//Expect that the token list ends here
-				const final = state.next();
-				if (final.type !== 'eoi') {
-					state.unexpectedToken(final.value, 'end of input');
-				}
+		//Read the program body
+		[bodyStatus, body] = _readBlock(state);
+		if (bodyStatus !== ParseStatus.EOI) {
+			//Read the outro of the program ("write <out>")
+			[outputStatus, output] = _readProgramOutro(state);
+			//Expect that the token list ends here
+			const final = state.next();
+			if (final !== null) {
+				state.unexpectedToken(final.value, 'end of input');
 			}
-		} else {
-			state.unexpectedEOI(TKN_BLOCK_OPN);
 		}
 	}
 
@@ -762,16 +733,10 @@ function _readProgram(state: StateManager): AST_PROG|AST_PROG_PARTIAL {
 
 /**
  * Parse a token list (from the lexer) to an abstract syntax tree.
- * The token list must end in an EOI token (@link EOI_TYPE} for the parser to function.
  * @param tokens	The program tokens to parse
  * @return	An abstract syntax tree representing the program, and a list of all the errors in the program
  */
 export default function parser(tokens: WHILE_TOKEN[]) : [AST_PROG|AST_PROG_PARTIAL, ErrorType[]] {
-	//Ensure the token list ends with an EOI token
-	if (!tokens.length || tokens[tokens.length - 1].type !== 'eoi') {
-		throw new Error(`The token list must end in an End of Input token`);
-	}
-
 	//Make a state manager object for use in the parser
 	const stateManager = new StateManager(tokens);
 	//Parse the program
