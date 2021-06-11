@@ -703,7 +703,7 @@ describe('Parser Error Checker', function () {
 			};
 			const expectedErrors: ErrorType[] = [
 				{
-					message: 'Missing input variable',
+					message: 'Unexpected token "{": Missing input variable',
 					position: 10,
 				},
 				{
@@ -772,7 +772,7 @@ describe('Parser Error Checker', function () {
 			};
 			const expectedErrors: ErrorType[] = [
 				{
-					message: `Unexpected token: Expected "write" got "X"`,
+					message: `Unexpected token "X": Expected "write"`,
 					position: 15,
 				},
 				//TODO: Should this have a separate error message for missing output variable?
@@ -798,7 +798,7 @@ describe('Parser Error Checker', function () {
 				output: idnt('X', 16),
 			};
 			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected token: Expected "read" got "X"',
+				message: 'Unexpected token "X": Expected "read"',
 				position: 5,
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);

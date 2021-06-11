@@ -75,9 +75,9 @@ class ErrorManager {
 		if (expected.length === 0) {
 			if (actual) msg += `: "${actual}"`;
 		} else {
+			if (actual) msg += ` "${actual}"`;
 			if (expected.length === 1) msg += `: Expected "${expected[0]}"`;
 			else msg += `: Expected one of "${expected.join(`", "`)}"`;
-			if (actual) msg += ` got "${actual}"`;
 		}
 		return this.addError(position, msg);
 	}
@@ -235,6 +235,18 @@ class StateManager {
 		return this;
 	}
 
+	public unexpectedEOICustom(msg: string) {
+		this.errorManager.addError(this._pos, `Unexpected end of input: ${msg}`);
+	}
+
+	public unexpectedTokenCustom(actual: string|undefined, msg: string) {
+		if (actual) {
+			this.errorManager.addError(this._pos, `Unexpected token "${actual}": ${msg}`);
+		} else {
+			this.errorManager.addError(this._pos, `Unexpected token: ${msg}`);
+		}
+	}
+
 	//Internal util methods
 	/**
 	 * Pop and return the next token from the queue, and update the position counter.
@@ -261,8 +273,8 @@ class StateManager {
 // ================
 
 /**
- * Read an expression from the token list
- * Returns a list containing the parser segment status, and the parsed expression tree
+ * Read an expression (hd/tl/cons) from the token list.
+ * Returns a list containing the parser segment status, and the parsed expression tree.
  * @param state		The parser state manager object
  * @returns {[ParseStatus.OK, AST_EXPR]}			The parsed expression tree
  * @returns {[ParseStatus.ERROR, AST_EXPR|AST_EXPR_PARTIAL|null]}	The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
@@ -349,7 +361,7 @@ function _readExpr(state: StateManager): AST_EXPR|AST_EXPR_PARTIAL|null {
 	} else if (first.type === 'identifier') {
 		return first;
 	} else {
-		state.unexpectedType(first.type, 'operation', 'identifier');
+		state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
 		return null;
 	}
 }
@@ -473,7 +485,7 @@ function _readStmt(state: StateManager): [ParseStatus, AST_CMD|AST_CMD_PARTIAL|n
 			}
 		];
 	}
-	state.unexpectedToken(undefined, TKN_WHILE, TKN_IF, 'assignment');
+	state.unexpectedTokenCustom(undefined, `Expected ${TKN_IF} ${TKN_WHILE} or an assignment statement`);
 	return [ParseStatus.ERROR, null];
 }
 
@@ -555,11 +567,10 @@ function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, 
 		const input: WHILE_TOKEN|null = state.peek();
 		if (input === null) {
 			state.next();
-			//TODO: Better EOI error
-			state.addError('Unexpected end of input: Missing input variable');
+			state.unexpectedEOICustom(`Missing input variable`);
 			return [ParseStatus.EOI, null];
 		} else if (input.value === TKN_BLOCK_OPN) {
-			state.errorManager.addError(input.pos, 'Missing input variable');
+			state.errorManager.addError(input.pos, `Unexpected token "${input.value}": Missing input variable`);
 			return [ParseStatus.ERROR, null];
 		} else if (input.type === 'identifier') {
 			state.next();
@@ -590,9 +601,10 @@ function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, 
 		} else {
 			state.next();
 			state.unexpectedToken(read.value, TKN_READ);
-			if (read.type === 'identifier')
-				return [ParseStatus.ERROR, read];
-			return [ParseStatus.ERROR, null];
+			return [
+				ParseStatus.ERROR,
+				(read.type === 'identifier') ? read : null
+			];
 		}
 	}
 
@@ -600,7 +612,7 @@ function _readProgramIntro(state: StateManager): [ParseStatus, IDENT_TYPE|null, 
 	let name: WHILE_TOKEN|null = state.peek();
 	if (name === null) {
 		state.next();
-		state.addError('Unexpected end of input: Missing program name');
+		state.unexpectedEOICustom(`Missing program name`);
 		return [ParseStatus.EOI, null, null];
 	} else if (name.value === TKN_READ) {
 		state.next();
@@ -667,7 +679,7 @@ function _readProgramOutro(state: StateManager): [ParseStatus, IDENT_TYPE|null] 
 		state.unexpectedEOI('identifier');
 		err = ParseStatus.EOI;
 	} else if (outputVar.type !== 'identifier') {
-		state.unexpectedValue(outputVar.type, outputVar.value, 'identifier');
+		state.unexpectedTokenCustom(outputVar.value, ` Expected an identifier`);
 		err = ParseStatus.ERROR;
 	} else {
 		output = outputVar;
@@ -703,7 +715,7 @@ function _readProgram(state: StateManager): AST_PROG|AST_PROG_PARTIAL {
 			//Expect that the token list ends here
 			const final = state.next();
 			if (final !== null) {
-				state.unexpectedToken(final.value, 'end of input');
+				state.unexpectedTokenCustom(final.value, 'Expected end of input');
 			}
 		}
 	}
