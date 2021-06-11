@@ -165,18 +165,24 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 	let res: WHILE_TOKEN[] = [];
 
 	//Run until the input string is empty
-	while (program) {
+	while (program.length) {
 		const whitespace: RegExpMatchArray|null = program.match(/^\s+/);
 		if (whitespace !== null) {
 			let match = whitespace[0];
 			pos += match.length;
 			program = program.substring(match.length);
+			continue;
 		}
 
 		//End-of-line comment
 		if (program.substr(0, 2) === '//') {
 			//Ignore text to the next line break, or the end of the program
-			const index = program.search('\n|$') + 1;
+			let index = program.search('\n') || -1;
+			//Go to the end of the string
+			if (index === -1) index = program.length;
+			//Go to the end of the line, plus the line break
+			else index += 1;
+
 			pos += index;
 			program = program.substring(index);
 			continue;
@@ -184,12 +190,15 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		//Comment block (multiline/inline)
 		if (program.substr(0, 2) == '(*') {
 			//Ignore text to the end of the comment block
-			const index = program.search(/\*\)|$/);
+			let index = program.search(/\*\)/) || -1;
 			if (index === -1) {
 				//TODO: Handle missing end-of-block
+				pos = program.length;
+			} else {
+				index += 2;
+				pos += index;
 			}
-			pos += index + 2;
-			program = program.substring(index + 2);
+			program = program.substring(index);
 			continue;
 		}
 
@@ -209,7 +218,6 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		pos += token.value.length;
 		program = program.substring(token.value.length)
 	}
-
 	//Return the produced token list
 	return res;
 }
