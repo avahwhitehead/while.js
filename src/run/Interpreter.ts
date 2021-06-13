@@ -1,4 +1,4 @@
-import { AST_CMD, AST_EXPR, AST_PROG } from "../types/ast";
+import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_WHILE } from "../types/ast";
 import { BinaryTree } from "../types/Trees";
 import { OP_TYPE } from "../linter/lexer";
 
@@ -37,56 +37,70 @@ export default class Interpreter {
 	 * @returns	BinaryTree	The value of the output variable at the end of execution
 	 */
 	public run(): BinaryTree {
-		//Reset the store to its initial state
-		this._store.clear();
-		this._store.set(this._program.input.value, this._input);
-		//Run program block
-		this._runBlock(this._program.body);
-		//Return the output variable's value
-		return this._store.get(this._program.output.value) || null;
-	}
-
-	/**
-	 * Run a block of statements.
-	 * E.g. a while loop body, if/else blocks, ...
-	 * @param block	The block of statements to execute.
-	 * @private
-	 */
-	private _runBlock(block: AST_CMD[]): void {
-		for (let stmt of block) {
-			this._runStatement(stmt);
+		type AST_BLOCK = {
+			type: 'block',
+			body: AST_CMD[],
 		}
-	}
+		type AST_PROG = {
+			type: 'program',
+			body: AST_BLOCK,
+		}
+		type EXEC_AST_CMD = AST_ASGN|AST_BLOCK|AST_IF|AST_WHILE|AST_PROG;
+		let commandStack: EXEC_AST_CMD[] = [];
 
-	/**
-	 * Run a single statement.
-	 * This is a loop, condition, or assignment.
-	 * @param stmt	The statement to execute
-	 * @private
-	 */
-	private _runStatement(stmt: AST_CMD): void {
-		if (stmt.type === 'cond') {
-			//Evaluate the condition
-			let condition = this._evalExpr(stmt.condition);
-			//Evaluate the else block if the condition is 'nil'
-			if (condition === null) this._runBlock(stmt.else);
-			//Otherwise run the if block
-			else this._runBlock(stmt.if);
-		} else if (stmt.type === 'assign') {
-			this._store.set(stmt.ident.value, this._evalExpr(stmt.arg));
-		} else if (stmt.type === 'loop') {
-			while (true) {
+		commandStack.push({
+			type: 'block',
+			body: [...this._program.body],
+		});
+
+		while (commandStack.length > 0) {
+			//Read the next command from the top of the stack
+			let op = commandStack.pop()!;
+
+			if (op.type === "assign") {
+				//Evaluate the right-side of the assignment
+				let val = this._evalExpr(op.arg);
+				//Store in the variable
+				this._store.set(op.ident.value, val);
+			} else if (op.type === "cond") {
 				//Evaluate the condition
-				let condition = this._evalExpr(stmt.condition);
-				//Exit the loop if the condition is nil
-				if (condition === null) break;
-				//Evaluate the loop block if the condition is 'nil'
-				this._runBlock(stmt.body);
+				if (this._evalExpr(op.condition) !== null) {
+					//Add the if block to the stack to be executed
+					commandStack.push({
+						type: 'block',
+						body: [...op.if]
+					});
+				} else {
+					//Add the else block to the stack to be executed
+					commandStack.push({
+						type: 'block',
+						body: [...op.else]
+					});
+				}
+			} else if (op.type === "loop") {
+				//Evaluate the condition
+				if (this._evalExpr(op.condition) !== null) {
+					//Add the loop to the top of the stack so it is checked again later
+					commandStack.push(op);
+					//Evaluate the loop body once
+					commandStack.push({
+						type: 'block',
+						body: [...op.body]
+					});
+				}
+			} else if (op.type === "block") {
+				//Read the first command from the block
+				let first: AST_CMD | undefined = op.body.shift();
+				//Add the block to the stack if it is not finished
+				if (op.body.length > 0) commandStack.push(op);
+				//Add the command to the stack if it exists
+				if (first !== undefined) commandStack.push(first);
+			} else {
+				throw new Error(`Unexpected operation type '${op.type}'`);
 			}
-		} else {
-			//Error on unknown type (shouldn't occur)
-			throw new Error(`Unknown statement token '${stmt!.type}'`);
 		}
+		//Return the output variable value
+		return this._store.get(this._program.output.value) || null;
 	}
 
 	/**
