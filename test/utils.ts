@@ -1,4 +1,15 @@
 import { BinaryTree } from "../src/types/Trees";
+import {
+	EXPR_TOKEN,
+	EXPR_TYPE,
+	IDENT_TYPE,
+	OP_TOKEN,
+	OP_TYPE,
+	SYMBOL_TOKEN,
+	SYMBOL_TYPE,
+	UNKNOWN_TYPE
+} from "../src/linter/lexer";
+import Position from "../src/types/position";
 
 //Useful functions
 
@@ -52,4 +63,56 @@ export function a(...elements: (BinaryTree|number)[]): BinaryTree {
 	}
 
 	return tree;
+}
+
+
+export function sym(t: SYMBOL_TOKEN, pos: Position): SYMBOL_TYPE;
+export function sym(t: SYMBOL_TOKEN, pos: number, col: number): SYMBOL_TYPE;
+export function sym(t: SYMBOL_TOKEN, pos: Position|number, col?: number): SYMBOL_TYPE {
+	return {
+		type: 'symbol',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
+}
+export function expr(t: EXPR_TOKEN, pos: Position): EXPR_TYPE;
+export function expr(t: EXPR_TOKEN, pos: number, col: number): EXPR_TYPE;
+export function expr(t: EXPR_TOKEN, pos: Position|number, col?: number): EXPR_TYPE {
+	return {
+		type: 'expression',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
+}
+export function opr(t: OP_TOKEN, pos: Position): OP_TYPE;
+export function opr(t: OP_TOKEN, pos: number, col: number): OP_TYPE;
+export function opr(t: OP_TOKEN, pos: Position|number, col?: number): OP_TYPE {
+	return {
+		type: 'operation',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
+}
+export function idnt(t: string, pos: Position): IDENT_TYPE;
+export function idnt(t: string, pos: number, col: number): IDENT_TYPE;
+export function idnt(t: string, pos: Position|number, col?: number): IDENT_TYPE {
+	return {
+		type: 'identifier',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
+}
+export function ukwn(t: string, pos: Position): UNKNOWN_TYPE;
+export function ukwn(t: string, pos: number, col: number): UNKNOWN_TYPE;
+export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYPE {
+	return {
+		type: 'unknown',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
 }

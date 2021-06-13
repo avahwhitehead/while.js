@@ -16,12 +16,13 @@ import {
 	WHILE_TOKEN
 } from "../lexer";
 import { AST_CMD, AST_CMD_PARTIAL, AST_EXPR, AST_EXPR_PARTIAL, AST_PROG, AST_PROG_PARTIAL } from "../../types/ast";
+import Position, { incrementPos } from "../../types/position";
 
 /**
  * Type representing an error message at a position in the input program
  */
 export type ErrorType = {
-	position: number,
+	position: Position,
 	message: string,
 }
 
@@ -54,23 +55,23 @@ class ErrorManager {
 	 * @param position	The position of the error in the program
 	 * @param message	Message describing the error
 	 */
-	public addError(position: number, message: string): this {
+	public addError(position: Position, message: string): this {
 		this._errors.push({
 			message,
-			position,
+			position: {...position},
 		});
 		return this;
 	}
 
-	public unexpectedToken(position: number, actual?: string, ...expected: string[]): this {
+	public unexpectedToken(position: Position, actual?: string, ...expected: string[]): this {
 		return this.unexpectedValue(position, 'token', actual, ...expected);
 	}
 
-	public unexpectedEOI(position: number, ...expected: string[]): this {
+	public unexpectedEOI(position: Position, ...expected: string[]): this {
 		return this.unexpectedValue(position, 'end of input', undefined, ...expected);
 	}
 
-	public unexpectedValue(position: number, type: string = 'token', actual?: string, ...expected: string[]): this {
+	public unexpectedValue(position: Position, type: string = 'token', actual?: string, ...expected: string[]): this {
 		let msg = `Unexpected ${type}`;
 		if (expected.length === 0) {
 			if (actual) msg += `: "${actual}"`;
@@ -90,14 +91,17 @@ class ErrorManager {
 class StateManager {
 	private readonly _errorManager: ErrorManager;
 	private readonly _tokens: WHILE_TOKEN[];
-	private _pos: number;
+	private _pos: Position;
 	private _lastToken: WHILE_TOKEN|undefined;
 
 	public constructor(tokens: WHILE_TOKEN[]) {
 		this._errorManager = new ErrorManager();
 		this._tokens = tokens;
 		this._lastToken = undefined;
-		this._pos = 0;
+		this._pos = {
+			col: 0,
+			row: 0,
+		};
 	}
 
 	/**
@@ -258,10 +262,13 @@ class StateManager {
 		const first = this._tokens.shift() || null;
 		//Increment the position counter
 		if (first !== null) {
-			this._pos = first.pos;
+			this._pos = {...first.pos};
 			this._lastToken = first;
 		} else {
-			this._pos += this._lastToken?.value.length || 0;
+			incrementPos(
+				this._pos,
+				this._lastToken?.value || ''
+			);
 		}
 		//Return the token
 		return first;

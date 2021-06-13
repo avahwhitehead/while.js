@@ -3,57 +3,14 @@ import { expect } from "chai";
 import { describe, it } from "mocha";
 import parser, { ErrorType } from "../../src/linter/parser";
 import lexer, {
-	EXPR_TOKEN,
-	EXPR_TYPE,
-	IDENT_TYPE,
-	OP_TOKEN,
-	OP_TYPE,
-	SYMBOL_TOKEN,
-	SYMBOL_TYPE,
 	TKN_CONS,
 	TKN_HD,
 	TKN_TL,
-	UNKNOWN_TYPE
 } from "../../src/linter/lexer";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
+import { expr, idnt, opr, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;
-
-function sym(t: SYMBOL_TOKEN, pos: number): SYMBOL_TYPE {
-	return {
-		type: 'symbol',
-		value: t,
-		pos
-	};
-}
-function expr(t: EXPR_TOKEN, pos: number): EXPR_TYPE {
-	return {
-		type: 'expression',
-		value: t,
-		pos
-	};
-}
-function opr(t: OP_TOKEN, pos: number): OP_TYPE {
-	return {
-		type: 'operation',
-		value: t,
-		pos
-	};
-}
-function idnt(t: string, pos: number): IDENT_TYPE {
-	return {
-		type: 'identifier',
-		value: t,
-		pos
-	};
-}
-function ukwn(t: string, pos: number): UNKNOWN_TYPE {
-	return {
-		type: 'unknown',
-		value: t,
-		pos
-	};
-}
 
 describe('Parser', function () {
 	describe('identity program', function () {
@@ -61,9 +18,9 @@ describe('Parser', function () {
 			const expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('ident', 0),
-				input: idnt('X', 11),
-				output: idnt('X', 22),
+				name: idnt('ident', 0, 0),
+				input: idnt('X', 0, 11),
+				output: idnt('X', 0, 22),
 				body: []
 			};
 			expect(parser(lexer(
@@ -80,21 +37,21 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('add1', 0),
-				input: idnt('X', 10),
-				output: idnt('Y', 38),
+				name: idnt('add1', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 0, 38),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('Y', 14),
+						ident: idnt('Y', 0, 14),
 						arg: {
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 19),
+							op: opr(TKN_CONS, 0, 19),
 							args: [
-								idnt('nil', 24),
-								idnt('X', 28)
+								idnt('nil', 0, 24),
+								idnt('X', 0, 28)
 							]
 						}
 					}
@@ -114,35 +71,35 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('add2', 0),
-				input: idnt('X', 10),
-				output: idnt('Y', 57),
+				name: idnt('add2', 0, 0),
+				input: idnt('X', 1, 5),
+				output: idnt('Y', 5, 6),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('Y', 15),
+						ident: idnt('Y', 2, 1),
 						arg: {
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 20),
+							op: opr(TKN_CONS, 2, 6),
 							args: [
-								idnt('nil', 25),
-								idnt('X', 29)
+								idnt('nil', 2, 11),
+								idnt('X', 2, 15)
 							]
 						}
 					},
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('Y', 33),
+						ident: idnt('Y', 3, 1),
 						arg: {
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 38),
+							op: opr(TKN_CONS, 3, 6),
 							args: [
-								idnt('nil', 43),
-								idnt('Y', 47)
+								idnt('nil', 3, 11),
+								idnt('Y', 3, 15)
 							]
 						}
 					}
@@ -167,25 +124,25 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 44),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 44),
 				body: [
 					{
 						type: 'loop',
 						complete: true,
-						condition: idnt('X', 20),
+						condition: idnt('X', 0, 20),
 						body: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('X', 24),
+								ident: idnt('X', 0, 24),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_TL, 29),
+									op: opr(TKN_TL, 0, 29),
 									args: [
-										idnt('X', 32)
+										idnt('X', 0, 32)
 									]
 								}
 							}
@@ -207,9 +164,9 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('Y', 54),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 0, 54),
 				body: [
 					{
 						type: 'cond',
@@ -217,21 +174,21 @@ describe('Parser', function () {
 						condition: {
 							type: 'operation',
 							complete: true,
-							op: opr('tl', 18),
-							args: [idnt('X', 21)],
+							op: opr('tl', 0, 18),
+							args: [idnt('X', 0, 21)],
 						},
 						if: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('Y', 26),
+								ident: idnt('Y', 0, 26),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 31),
+									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 36),
-										idnt('nil', 40),
+										idnt('nil', 0, 36),
+										idnt('nil', 0, 40),
 									]
 								}
 							}
@@ -252,24 +209,24 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 88),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 88),
 				body: [
 					{
 						type: 'cond',
 						complete: true,
-						condition: idnt('X', 17),
+						condition: idnt('X', 0, 17),
 						if: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('X', 21),
+								ident: idnt('X', 0, 21),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_TL, 26),
-									args: [idnt('X', 29)]
+									op: opr(TKN_TL, 0, 26),
+									args: [idnt('X', 0, 29)]
 								}
 							}
 						],
@@ -277,17 +234,17 @@ describe('Parser', function () {
 							{
 								type: 'cond',
 								complete: true,
-								condition: idnt('X', 43),
+								condition: idnt('X', 0, 43),
 								if: [
 									{
 										type: 'assign',
 										complete: true,
-										ident: idnt('X', 47),
+										ident: idnt('X', 0, 47),
 										arg: {
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_TL, 52),
-											args: [idnt('X', 55)]
+											op: opr(TKN_TL, 0, 52),
+											args: [idnt('X', 0, 55)]
 										}
 									}
 								],
@@ -295,12 +252,12 @@ describe('Parser', function () {
 									{
 										type: 'assign',
 										complete: true,
-										ident: idnt('X', 66),
+										ident: idnt('X', 0, 66),
 										arg: {
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_TL, 71),
-											args: [idnt('X', 74)]
+											op: opr(TKN_TL, 0, 71),
+											args: [idnt('X', 0, 74)]
 										}
 									}
 								]
@@ -323,37 +280,37 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 67),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 67),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('X', 14),
+						ident: idnt('X', 0, 14),
 						arg: {
 							//cons
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 19),
+							op: opr(TKN_CONS, 0, 19),
 							args: [
 								{
 									//cons
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 24),
+									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 29),
+										idnt('nil', 0, 29),
 										{
 											//cons
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_CONS, 33),
+											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 38),
-												idnt('nil', 42),
+												idnt('nil', 0, 38),
+												idnt('nil', 0, 42),
 											]
 										}
 									]
@@ -362,10 +319,10 @@ describe('Parser', function () {
 									//nil nil
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 46),
+									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 51),
-										idnt('nil', 55),
+										idnt('nil', 0, 51),
+										idnt('nil', 0, 55),
 									]
 								}
 							]
@@ -385,37 +342,37 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 73),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 73),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('X', 14),
+						ident: idnt('X', 0, 14),
 						arg: {
 							//cons
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 19),
+							op: opr(TKN_CONS, 0, 19),
 							args: [
 								{
 									//cons
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 25),
+									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 30),
+										idnt('nil', 0, 30),
 										{
 											//cons
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_CONS, 35),
+											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 40),
-												idnt('nil', 44),
+												idnt('nil', 0, 40),
+												idnt('nil', 0, 44),
 											]
 										}
 									]
@@ -424,10 +381,10 @@ describe('Parser', function () {
 									//nil nil
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 51),
+									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 56),
-										idnt('nil', 60),
+										idnt('nil', 0, 56),
+										idnt('nil', 0, 60),
 									]
 								}
 							]
@@ -447,26 +404,26 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 38),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 38),
 				body: [{
 					type: 'assign',
 					complete: true,
-					ident: idnt('X', 14),
+					ident: idnt('X', 0, 14),
 					arg: {
 						type: 'operation',
 						complete: true,
-						op: opr(TKN_HD, 19),
+						op: opr(TKN_HD, 0, 19),
 						args: [{
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_HD, 22),
+							op: opr(TKN_HD, 0, 22),
 							args: [{
 								type: 'operation',
 								complete: true,
-								op: opr(TKN_HD, 25),
-								args: [idnt('X', 28)]
+								op: opr(TKN_HD, 0, 25),
+								args: [idnt('X', 0, 28)]
 							}]
 						}]
 					}
@@ -484,26 +441,26 @@ describe('Parser', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 38),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 38),
 				body: [{
 					type: 'assign',
 					complete: true,
-					ident: idnt('X', 14),
+					ident: idnt('X', 0, 14),
 					arg: {
 						type: 'operation',
 						complete: true,
-						op: opr(TKN_TL, 19),
+						op: opr(TKN_TL, 0, 19),
 						args: [{
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_TL, 22),
+							op: opr(TKN_TL, 0, 22),
 							args: [{
 								type: 'operation',
 								complete: true,
-								op: opr(TKN_TL, 25),
-								args: [idnt('X', 28)]
+								op: opr(TKN_TL, 0, 25),
+								args: [idnt('X', 0, 28)]
 							}]
 						}]
 					}
@@ -532,7 +489,7 @@ describe('Parser Error Checker', function () {
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Missing program name',
-				position: 0
+				position: { row: 0, col: 0 }
 			}];
 			const res = parser(lexer(
 				''
@@ -548,14 +505,14 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
+				name: idnt('name', 0, 0),
 				input: null,
 				body: [],
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Expected "read"',
-				position: 4,
+				position: { row: 0, col: 4 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -568,7 +525,7 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
+				name: idnt('name', 0, 0),
 				input: null,
 				body: [],
 				output: null,
@@ -576,11 +533,11 @@ describe('Parser Error Checker', function () {
 			const expectedErrors: ErrorType[] = [
 				{
 					message: 'Unexpected token: Expected "read"',
-					position: 5,
+					position: { row: 0, col: 5 },
 				},
 				{
 					message: 'Unexpected end of input: Expected "write"',
-					position: 7,
+					position: { row: 0, col: 7 },
 				}
 			];
 			expect(res[0]).to.deep.equal(expectedAst);
@@ -602,15 +559,15 @@ describe('Parser Error Checker', function () {
 			const expectedErrors: ErrorType[] = [
 				{
 					message: `Unexpected token: Missing program name`,
-					position: 0,
+					position: { row: 0, col: 0 }
 				},
 				{
 					message: `Unexpected token: Expected "read"`,
-					position: 0
+					position: { row: 0, col: 0 }
 				},
 				{
 					message: `Unexpected end of input: Expected "write"`,
-					position: 2
+					position: { row: 0, col: 2 }
 				}
 			];
 			expect(res[0]).to.deep.equal(expectedAst);
@@ -624,14 +581,14 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
+				name: idnt('name', 0, 0),
 				input: null,
 				output: null,
 				body: [],
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Missing input variable',
-				position: 9,
+				position: { row: 0, col: 9 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -644,14 +601,14 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 10),
 				output: null,
 				body: [],
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Expected "}"',
-				position: 13,
+				position: { row: 0, col: 13 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -665,25 +622,25 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('Y', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('Y', 0, 10),
 				output: null,
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('X', 14+2),
+						ident: idnt('X', 1, 2),
 						arg: {
 							type: 'identifier',
 							value: 'Y',
-							pos: 14+7
+							pos: { row: 1, col: 7 }
 						}
 					}
 				],
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Expected one of ";", "}"',
-				position: 22,
+				position: { row: 1, col: 8 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -696,7 +653,7 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
+				name: idnt('name', 0, 0),
 				input: null,
 				body: [],
 				output: null,
@@ -704,11 +661,11 @@ describe('Parser Error Checker', function () {
 			const expectedErrors: ErrorType[] = [
 				{
 					message: 'Unexpected token "{": Missing input variable',
-					position: 10,
+					position: { row: 0, col: 10 }
 				},
 				{
 					message: 'Unexpected end of input: Expected "write"',
-					position: 12,
+					position: { row: 0, col: 12 }
 				}
 			];
 			expect(res[0]).to.deep.equal(expectedAst);
@@ -722,15 +679,15 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 10),
 				body: [],
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [
 				{
 					message: 'Unexpected end of input: Expected "write"',
-					position: 14,
+					position: { row: 0, col: 14 },
 				},
 			];
 			expect(res[0]).to.deep.equal(expectedAst);
@@ -744,15 +701,15 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 10),
 				body: [],
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [{
 				//TODO: Remove quotes from type errors
 				message: 'Unexpected end of input: Expected "identifier"',
-				position: 20,
+				position: { row: 0, col: 20 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -765,20 +722,20 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 10),
 				body: [],
-				output: idnt('X', 15),
+				output: idnt('X', 0, 15),
 			};
 			const expectedErrors: ErrorType[] = [
 				{
 					message: `Unexpected token "X": Expected "write"`,
-					position: 15,
+					position: { row: 0, col: 15 }
 				},
 				//TODO: Should this have a separate error message for missing output variable?
 				{
 					message: 'Unexpected end of input: Expected "identifier"',
-					position: 16,
+					position: { row: 0, col: 16 }
 				}
 			];
 			expect(res[0]).to.deep.equal(expectedAst);
@@ -792,14 +749,14 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 5),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 5),
 				body: [],
-				output: idnt('X', 16),
+				output: idnt('X', 0, 16),
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected token "X": Expected "read"',
-				position: 5,
+				position: { row: 0, col: 5 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -812,14 +769,14 @@ describe('Parser Error Checker', function () {
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
-				name: idnt('name', 0),
-				input: idnt('X', 10),
+				name: idnt('name', 0, 0),
+				input: idnt('X', 0, 10),
 				body: [],
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected end of input: Expected "identifier"',
-				position: 20,
+				position: { row: 0, col: 20 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -833,13 +790,13 @@ describe('Parser Error Checker', function () {
 				type: 'program',
 				complete: false,
 				name: null,
-				input: idnt('X', 5),
+				input: idnt('X', 0, 5),
 				body: [],
-				output: idnt('X', 16),
+				output: idnt('X', 0, 16),
 			};
 			const expectedErrors: ErrorType[] = [{
 				message: 'Unexpected token: Missing program name',
-				position: 0,
+				position: { row: 0, col: 0 },
 			}];
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -853,25 +810,25 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 44),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 44),
 				body: [
 					{
 						type: 'loop',
 						complete: true,
-						condition: idnt('X', 20),
+						condition: idnt('X', 0, 20),
 						body: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('X', 24),
+								ident: idnt('X', 0, 24),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_TL, 29),
+									op: opr(TKN_TL, 0, 29),
 									args: [
-										idnt('X', 32)
+										idnt('X', 0, 32)
 									]
 								}
 							}
@@ -893,9 +850,9 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('Y', 54),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 0, 54),
 				body: [
 					{
 						type: 'cond',
@@ -903,21 +860,21 @@ describe('Parser Error Checker', function () {
 						condition: {
 							type: 'operation',
 							complete: true,
-							op: opr('tl', 18),
-							args: [idnt('X', 21)],
+							op: opr('tl', 0, 18),
+							args: [idnt('X', 0, 21)],
 						},
 						if: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('Y', 26),
+								ident: idnt('Y', 0, 26),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 31),
+									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 36),
-										idnt('nil', 40),
+										idnt('nil', 0, 36),
+										idnt('nil', 0, 40),
 									]
 								}
 							}
@@ -938,24 +895,24 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 88),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 88),
 				body: [
 					{
 						type: 'cond',
 						complete: true,
-						condition: idnt('X', 17),
+						condition: idnt('X', 0, 17),
 						if: [
 							{
 								type: 'assign',
 								complete: true,
-								ident: idnt('X', 21),
+								ident: idnt('X', 0, 21),
 								arg: {
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_TL, 26),
-									args: [idnt('X', 29)]
+									op: opr(TKN_TL, 0, 26),
+									args: [idnt('X', 0, 29)]
 								}
 							}
 						],
@@ -963,17 +920,17 @@ describe('Parser Error Checker', function () {
 							{
 								type: 'cond',
 								complete: true,
-								condition: idnt('X', 43),
+								condition: idnt('X', 0, 43),
 								if: [
 									{
 										type: 'assign',
 										complete: true,
-										ident: idnt('X', 47),
+										ident: idnt('X', 0, 47),
 										arg: {
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_TL, 52),
-											args: [idnt('X', 55)]
+											op: opr(TKN_TL, 0, 52),
+											args: [idnt('X', 0, 55)]
 										}
 									}
 								],
@@ -981,12 +938,12 @@ describe('Parser Error Checker', function () {
 									{
 										type: 'assign',
 										complete: true,
-										ident: idnt('X', 66),
+										ident: idnt('X', 0, 66),
 										arg: {
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_TL, 71),
-											args: [idnt('X', 74)]
+											op: opr(TKN_TL, 0, 71),
+											args: [idnt('X', 0, 74)]
 										}
 									}
 								]
@@ -1009,37 +966,37 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 67),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 67),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('X', 14),
+						ident: idnt('X', 0, 14),
 						arg: {
 							//cons
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 19),
+							op: opr(TKN_CONS, 0, 19),
 							args: [
 								{
 									//cons
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 24),
+									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 29),
+										idnt('nil', 0, 29),
 										{
 											//cons
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_CONS, 33),
+											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 38),
-												idnt('nil', 42),
+												idnt('nil', 0, 38),
+												idnt('nil', 0, 42),
 											]
 										}
 									]
@@ -1048,10 +1005,10 @@ describe('Parser Error Checker', function () {
 									//nil nil
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 46),
+									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 51),
-										idnt('nil', 55),
+										idnt('nil', 0, 51),
+										idnt('nil', 0, 55),
 									]
 								}
 							]
@@ -1071,37 +1028,37 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 73),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 73),
 				body: [
 					{
 						type: 'assign',
 						complete: true,
-						ident: idnt('X', 14),
+						ident: idnt('X', 0, 14),
 						arg: {
 							//cons
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_CONS, 19),
+							op: opr(TKN_CONS, 0, 19),
 							args: [
 								{
 									//cons
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 25),
+									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 30),
+										idnt('nil', 0, 30),
 										{
 											//cons
 											type: 'operation',
 											complete: true,
-											op: opr(TKN_CONS, 35),
+											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 40),
-												idnt('nil', 44),
+												idnt('nil', 0, 40),
+												idnt('nil', 0, 44),
 											]
 										}
 									]
@@ -1110,10 +1067,10 @@ describe('Parser Error Checker', function () {
 									//nil nil
 									type: 'operation',
 									complete: true,
-									op: opr(TKN_CONS, 51),
+									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 56),
-										idnt('nil', 60),
+										idnt('nil', 0, 56),
+										idnt('nil', 0, 60),
 									]
 								}
 							]
@@ -1133,26 +1090,26 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 38),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 38),
 				body: [{
 					type: 'assign',
 					complete: true,
-					ident: idnt('X', 14),
+					ident: idnt('X', 0, 14),
 					arg: {
 						type: 'operation',
 						complete: true,
-						op: opr(TKN_HD, 19),
+						op: opr(TKN_HD, 0, 19),
 						args: [{
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_HD, 22),
+							op: opr(TKN_HD, 0, 22),
 							args: [{
 								type: 'operation',
 								complete: true,
-								op: opr(TKN_HD, 25),
-								args: [idnt('X', 28)]
+								op: opr(TKN_HD, 0, 25),
+								args: [idnt('X', 0, 28)]
 							}]
 						}]
 					}
@@ -1170,26 +1127,26 @@ describe('Parser Error Checker', function () {
 			let expected: AST_PROG = {
 				type: 'program',
 				complete: true,
-				name: idnt('prog', 0),
-				input: idnt('X', 10),
-				output: idnt('X', 38),
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 0, 38),
 				body: [{
 					type: 'assign',
 					complete: true,
-					ident: idnt('X', 14),
+					ident: idnt('X', 0, 14),
 					arg: {
 						type: 'operation',
 						complete: true,
-						op: opr(TKN_TL, 19),
+						op: opr(TKN_TL, 0, 19),
 						args: [{
 							type: 'operation',
 							complete: true,
-							op: opr(TKN_TL, 22),
+							op: opr(TKN_TL, 0, 22),
 							args: [{
 								type: 'operation',
 								complete: true,
-								op: opr(TKN_TL, 25),
-								args: [idnt('X', 28)]
+								op: opr(TKN_TL, 0, 25),
+								args: [idnt('X', 0, 28)]
 							}]
 						}]
 					}

@@ -1,3 +1,5 @@
+import Position, { incrementPos } from "../../types/position";
+
 //Symbols
 export type SYMBOL_TOKEN = ';' | ':=' | '{' | '}' | '(' | ')';
 export const TKN_SEP: SYMBOL_TOKEN = ';';
@@ -46,7 +48,7 @@ const OP_LIST: OP_TOKEN[] = [
 export interface SYMBOL_TYPE {
 	type: 'symbol';
 	value: SYMBOL_TOKEN;
-	pos: number;
+	pos: Position;
 }
 
 /**
@@ -55,7 +57,7 @@ export interface SYMBOL_TYPE {
 export interface EXPR_TYPE {
 	type: 'expression';
 	value: EXPR_TOKEN;
-	pos: number;
+	pos: Position;
 }
 
 /**
@@ -64,7 +66,7 @@ export interface EXPR_TYPE {
 export interface OP_TYPE {
 	type: 'operation';
 	value: OP_TOKEN;
-	pos: number;
+	pos: Position;
 }
 
 /**
@@ -73,7 +75,7 @@ export interface OP_TYPE {
 export interface IDENT_TYPE {
 	type: 'identifier';
 	value: string;
-	pos: number;
+	pos: Position;
 }
 
 /**
@@ -82,7 +84,7 @@ export interface IDENT_TYPE {
 export interface UNKNOWN_TYPE {
 	type: 'unknown';
 	value: string;
-	pos: number;
+	pos: Position;
 }
 
 /**
@@ -106,7 +108,7 @@ function read_identifier(program: string): string|null {
  * @param program	The program string
  * @param pos
  */
-function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
+function read_next_token(program: string, pos: Position): WHILE_TOKEN|null {
 	//Attempt to read a symbol
 	for (let sym of SYMBOL_LIST) {
 		//Check each symbol against the start of the program string
@@ -115,7 +117,7 @@ function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
 			return {
 				type: 'symbol',
 				value: sym,
-				pos,
+				pos: {...pos},
 			};
 		}
 	}
@@ -160,7 +162,7 @@ function read_next_token(program: string, pos: number): WHILE_TOKEN|null {
  */
 export default function lexer(program: string): WHILE_TOKEN[] {
 	//Maintain a counter of how many characters have been processed
-	let pos = 0;
+	let pos: Position = { row:0, col:0 };
 	//Hold the produced token list
 	let res: WHILE_TOKEN[] = [];
 
@@ -169,7 +171,7 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		const whitespace: RegExpMatchArray|null = program.match(/^\s+/);
 		if (whitespace !== null) {
 			let match = whitespace[0];
-			pos += match.length;
+			incrementPos(pos, match);
 			program = program.substring(match.length);
 			continue;
 		}
@@ -183,7 +185,8 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 			//Go to the end of the line, plus the line break
 			else index += 1;
 
-			pos += index;
+			pos.row++;
+			pos.col = 0;
 			program = program.substring(index);
 			continue;
 		}
@@ -191,31 +194,29 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		if (program.substr(0, 2) == '(*') {
 			//Ignore text to the end of the comment block
 			let index = program.search(/\*\)/) || -1;
-			if (index === -1) {
-				//TODO: Handle missing end-of-block
-				pos = program.length;
-			} else {
-				index += 2;
-				pos += index;
-			}
+			index = index === -1 ? program.length : index + 2;
+			incrementPos(
+				pos,
+				program.substring(0, index)
+			);
 			program = program.substring(index);
 			continue;
 		}
 
 		//Read the next token in the program
-		let token: WHILE_TOKEN | null = read_next_token(program, pos);
+		let token: WHILE_TOKEN | null = read_next_token(program, {...pos});
 		if (token === null) {
 			//Mark unrecognised tokens
 			token = {
 				type: 'unknown',
 				value: program.charAt(0),
-				pos,
+				pos: {...pos},
 			};
 		}
 		//Save the token to the list
 		res.push(token);
 		//Remove the token from the start of the program
-		pos += token.value.length;
+		incrementPos(pos, token.value);
 		program = program.substring(token.value.length)
 	}
 	//Return the produced token list

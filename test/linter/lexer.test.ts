@@ -3,10 +3,8 @@ import { expect } from "chai";
 import { describe, it } from "mocha";
 import lexer, {
 	EXPR_TOKEN,
-	EXPR_TYPE,
-	IDENT_TYPE, OP_TOKEN, OP_TYPE,
+	OP_TOKEN,
 	SYMBOL_TOKEN,
-	SYMBOL_TYPE,
 	TKN_ASSGN,
 	TKN_BLOCK_CLS,
 	TKN_BLOCK_OPN,
@@ -20,9 +18,9 @@ import lexer, {
 	TKN_SEP,
 	TKN_TL,
 	TKN_WHILE,
-	TKN_WRITE,
-	UNKNOWN_TYPE
+	TKN_WRITE
 } from "../../src/linter/lexer";
+import { expr, idnt, opr, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;
 
@@ -45,49 +43,13 @@ const EXPR_ATOMS: EXPR_TOKEN[] = [
 	TKN_WHILE,
 ];
 
-function sym(t: SYMBOL_TOKEN, pos: number): SYMBOL_TYPE {
-	return {
-		type: 'symbol',
-		value: t,
-		pos
-	};
-}
-function expr(t: EXPR_TOKEN, pos: number): EXPR_TYPE {
-	return {
-		type: 'expression',
-		value: t,
-		pos
-	};
-}
-function opr(t: OP_TOKEN, pos: number): OP_TYPE {
-	return {
-		type: 'operation',
-		value: t,
-		pos
-	};
-}
-function idnt(t: string, pos: number): IDENT_TYPE {
-	return {
-		type: 'identifier',
-		value: t,
-		pos
-	};
-}
-function ukwn(t: string, pos: number): UNKNOWN_TYPE {
-	return {
-		type: 'unknown',
-		value: t,
-		pos
-	};
-}
-
 describe('Lexer', function () {
 	describe(`atoms`, function () {
 		for (let atom of SYMBOL_ATOMS) {
 			it(`should accept symbol '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						sym(atom, 0)
+						sym(atom, 0, 0)
 					]
 				);
 			});
@@ -96,7 +58,7 @@ describe('Lexer', function () {
 			it(`should accept expression '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						expr(atom, 0)
+						expr(atom, 0, 0)
 					]
 				);
 			});
@@ -105,7 +67,7 @@ describe('Lexer', function () {
 			it(`should accept operation '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						opr(atom, 0)
+						opr(atom, 0, 0)
 					]
 				);
 			});
@@ -117,7 +79,7 @@ describe('Lexer', function () {
 			it(`should accept identifier '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						idnt(atom, 0)
+						idnt(atom, 0, 0)
 					]
 				);
 			});
@@ -129,7 +91,7 @@ describe('Lexer', function () {
 			it(`should reject '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal(
 					[
-						ukwn(atom, 0)
+						ukwn(atom, 0, 0)
 					]
 				);
 			});
@@ -139,7 +101,7 @@ describe('Lexer', function () {
 				it(`should reject '${atom}'`, function () {
 					expect(lexer(atom)).to.deep.equal(
 						[
-							ukwn(atom, 0)
+							ukwn(atom, 0, 0)
 						]
 					);
 				});
@@ -154,13 +116,13 @@ describe('Lexer', function () {
 					'ident read X {} write X'
 				)).to.deep.equal(
 					[
-						idnt('ident', 0),
-						expr(TKN_READ, 6),
-						idnt('X', 11),
-						sym(TKN_BLOCK_OPN, 13),
-						sym(TKN_BLOCK_CLS, 14),
-						expr(TKN_WRITE, 16),
-						idnt('X', 22)
+						idnt('ident', 0, 0),
+						expr(TKN_READ, 0, 6),
+						idnt('X', 0, 11),
+						sym(TKN_BLOCK_OPN, 0, 13),
+						sym(TKN_BLOCK_CLS, 0, 14),
+						expr(TKN_WRITE, 0, 16),
+						idnt('X', 0, 22)
 					]
 				);
 			});
@@ -171,18 +133,18 @@ describe('Lexer', function () {
 					'add1 read X { Y := cons nil X } write Y'
 				)).to.deep.equal(
 					[
-						idnt('add1', 0),
-						expr(TKN_READ, 5),
-						idnt('X', 10),
-						sym(TKN_BLOCK_OPN, 12),
-							idnt('Y', 14),
-							sym(TKN_ASSGN, 16),
-							opr(TKN_CONS, 19),
-							idnt('nil', 24),
-							idnt('X', 28),
-						sym(TKN_BLOCK_CLS, 30),
-						expr(TKN_WRITE, 32),
-						idnt('Y', 38)
+						idnt('add1', 0, 0),
+						expr(TKN_READ, 0, 5),
+						idnt('X', 0, 10),
+						sym(TKN_BLOCK_OPN, 0, 12),
+							idnt('Y', 0, 14),
+							sym(TKN_ASSGN, 0, 16),
+							opr(TKN_CONS, 0, 19),
+							idnt('nil', 0, 24),
+							idnt('X', 0, 28),
+						sym(TKN_BLOCK_CLS, 0, 30),
+						expr(TKN_WRITE, 0, 32),
+						idnt('Y', 0, 38)
 					]
 				);
 			});
@@ -199,25 +161,25 @@ describe('Lexer', function () {
 					'write Y'
 				)).to.deep.equal(
 					[
-						idnt('add2', 0),
-						expr(TKN_READ, 5),
-						idnt('X', 10),
-						sym(TKN_BLOCK_OPN, 12),
-							idnt('Y', 15),
-							sym(TKN_ASSGN, 17),
-							opr(TKN_CONS, 20),
-							idnt('nil', 25),
-							idnt('X', 29),
-							sym(TKN_SEP, 30),
+						idnt('add2', 0, 0),
+						expr(TKN_READ, 1, 0),
+						idnt('X', 1, 5),
+						sym(TKN_BLOCK_OPN, 1, 7),
+							idnt('Y', 2, 1),
+							sym(TKN_ASSGN, 2, 3),
+							opr(TKN_CONS, 2, 6),
+							idnt('nil', 2, 11),
+							idnt('X', 2, 15),
+							sym(TKN_SEP, 2, 16),
 
-							idnt('Y', 33),
-							sym(TKN_ASSGN, 35),
-							opr(TKN_CONS, 38),
-							idnt('nil', 43),
-							idnt('Y', 47),
-						sym(TKN_BLOCK_CLS, 49),
-						expr(TKN_WRITE, 51),
-						idnt('Y', 57)
+							idnt('Y', 3, 1),
+							sym(TKN_ASSGN, 3, 3),
+							opr(TKN_CONS, 3, 6),
+							idnt('nil', 3, 11),
+							idnt('Y', 3, 15),
+						sym(TKN_BLOCK_CLS, 4, 0),
+						expr(TKN_WRITE, 5, 0),
+						idnt('Y', 5, 6)
 					]
 				);
 			});
@@ -235,14 +197,14 @@ describe('Lexer', function () {
 						'write X'
 					)).to.deep.equal(
 						[
-							idnt('prog', 39),
-							expr(TKN_READ, 44),
-							idnt('X', 49),
-							sym(TKN_BLOCK_OPN, 51),
+							idnt('prog', 1, 0),
+							expr(TKN_READ, 2, 0),
+							idnt('X', 2, 5),
+							sym(TKN_BLOCK_OPN, 2, 7),
 								//Nothing here
-							sym(TKN_BLOCK_CLS, 69),
-							expr(TKN_WRITE, 71),
-							idnt('X', 77)
+							sym(TKN_BLOCK_CLS, 4, 0),
+							expr(TKN_WRITE, 5, 0),
+							idnt('X', 5, 6)
 						]
 					);
 				});
@@ -258,17 +220,17 @@ describe('Lexer', function () {
 						'write X'
 					)).to.deep.equal(
 						[
-							idnt('prog', 0),
-							expr(TKN_READ, 5),
-							idnt('X', 10),
-							sym(TKN_BLOCK_OPN, 12),
-								idnt('X', 15),
-								sym(TKN_ASSGN, 17),
-								opr(TKN_TL, 20),
-								idnt('X', 23),
-							sym(TKN_BLOCK_CLS, 47),
-							expr(TKN_WRITE, 49),
-							idnt('X', 55)
+							idnt('prog', 0, 0),
+							expr(TKN_READ, 1, 0),
+							idnt('X', 1, 5),
+							sym(TKN_BLOCK_OPN, 1, 7),
+								idnt('X', 2, 1),
+								sym(TKN_ASSGN, 2, 3),
+								opr(TKN_TL, 2, 6),
+								idnt('X', 2, 9),
+							sym(TKN_BLOCK_CLS, 3, 0),
+							expr(TKN_WRITE, 4, 0),
+							idnt('X', 4, 6)
 						]
 					);
 				});
@@ -279,22 +241,22 @@ describe('Lexer', function () {
 					expect(lexer(
 						'prog\n' +
 						'read X {\n' +
-						'	X := tl (*Get the right child*) X' +
+						'	X := tl (*Get the right child*) X\n' +
 						'}\n' +
 						'write X'
 					)).to.deep.equal(
 						[
-							idnt('prog', 0),
-							expr(TKN_READ, 5),
-							idnt('X', 10),
-							sym(TKN_BLOCK_OPN, 12),
-								idnt('X', 15),
-								sym(TKN_ASSGN, 17),
-								opr(TKN_TL, 20),
-								idnt('X', 47),
-							sym(TKN_BLOCK_CLS, 48),
-							expr(TKN_WRITE, 50),
-							idnt('X', 56)
+							idnt('prog', 0, 0),
+							expr(TKN_READ, 1, 0),
+							idnt('X', 1, 5),
+							sym(TKN_BLOCK_OPN, 1, 7),
+								idnt('X', 2, 1),
+								sym(TKN_ASSGN, 2, 3),
+								opr(TKN_TL, 2, 6),
+								idnt('X', 2, 33),
+							sym(TKN_BLOCK_CLS, 3, 0),
+							expr(TKN_WRITE, 4, 0),
+							idnt('X', 4, 6)
 						]
 					);
 				});
@@ -305,23 +267,23 @@ describe('Lexer', function () {
 					expect(lexer(
 						'prog\n' +
 						'read X {\n' +
-						'	(*' +
-						'	This is a commented line' +
-						'	X := tl X' +
-						'	None of this is parsed' +
-						'	*)' +
+						'	(*\n' +
+						'	This is a commented line\n' +
+						'	X := tl X\n' +
+						'	None of this is parsed\n' +
+						'	*)\n' +
 						'}\n' +
 						'write X'
 					)).to.deep.equal(
 						[
-							idnt('prog', 0),
-							expr(TKN_READ, 5),
-							idnt('X', 10),
-							sym(TKN_BLOCK_OPN, 12),
+							idnt('prog', 0, 0),
+							expr(TKN_READ, 1, 0),
+							idnt('X', 1, 5),
+							sym(TKN_BLOCK_OPN, 1, 7),
 								//Nothing here
-							sym(TKN_BLOCK_CLS, 78),
-							expr(TKN_WRITE, 80),
-							idnt('X', 86)
+							sym(TKN_BLOCK_CLS, 7, 0),
+							expr(TKN_WRITE, 8, 0),
+							idnt('X', 8, 6)
 						]
 					);
 				});
