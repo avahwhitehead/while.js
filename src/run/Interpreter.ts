@@ -1,6 +1,7 @@
-import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_WHILE } from "../types/ast";
+import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_PROG_PARTIAL, AST_WHILE } from "../types/ast";
 import { BinaryTree } from "../types/Trees";
-import { OP_TYPE } from "../linter/lexer";
+import lexer, { OP_TYPE } from "../linter/lexer";
+import parser, { ErrorType } from "../linter/parser";
 
 /**
  * Constructor options for the {@link Interpreter} class
@@ -56,6 +57,32 @@ export default class Interpreter {
 	private _exprStack: EXEC_AST_EXPR[];
 
 	/**
+	 * Create an Interpreter object from a program string.
+	 * The program is parsed, and given to a new Interpreter object if everything succeeded.
+	 * @param program		The program string to run
+	 * @param inputTree		Input tree to pass to the program
+	 * @param props			Extra properties to pass when initialising the Interpreter
+	 */
+	public static parse(program: string, inputTree: BinaryTree, props?: InterpreterProps): { success: true, interpreter: Interpreter }|{ success: false, errors: ErrorType[] } {
+		//Pass the program through the lexer and parer
+		let tokenList = lexer(program);
+		let [ast, errors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList);
+
+		if (ast.complete) {
+			//Create and return an interpreter
+			return {
+				success: true,
+				interpreter: new Interpreter(ast, inputTree, props)
+			};
+		}
+		//Return the errors if the program couldn't be parsed completely
+		return {
+			success: false,
+			errors: errors,
+		};
+	}
+
+	/**
 	 * @param ast	AST of the program, as produced by the while parser
 	 * @param input	Binary tree to pass as input to the program
 	 * @param props	Initialisation configuration parameters
@@ -84,6 +111,14 @@ export default class Interpreter {
 		this._runCommandStack();
 		//Return the output variable value
 		return this._store.get(this._program.output.value) || null;
+	}
+
+	public get store(): Map<string, BinaryTree> {
+		return this._store;
+	}
+
+	public get ast(): AST_PROG {
+		return this._program;
 	}
 
 	/**
