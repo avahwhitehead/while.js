@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.1](https://github.com/sonrad10/while.js/compare/v1.2.0...v1.2.1) (2021-06-16)
+
+
+### Bug Fixes
+
+* updated dependencies ([944de72](https://github.com/sonrad10/while.js/commit/944de72d2d20b2685be3a4312f740b1567d2c2da))
+
 ## [1.2.0](https://github.com/sonrad10/while.js/compare/v1.1.0...v1.2.0) (2021-06-16)
 
 
