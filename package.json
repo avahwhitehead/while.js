@@ -19,7 +19,7 @@
   "author": "Avah Whitehead",
   "license": "MIT",
   "bin": {
-    "whilejs": "lib/index.js"
+    "whilejs": "lib/cli.js"
   },
   "devDependencies": {
     "@types/chai": "^4.2.18",
