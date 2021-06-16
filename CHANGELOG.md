@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.2](https://github.com/sonrad10/while.js/compare/v1.2.1...v1.2.2) (2021-06-16)
+
+
+### Bug Fixes
+
+* stopped missing tslib error when trying to run from the command line ([8e4b85c](https://github.com/sonrad10/while.js/commit/8e4b85ca3fd957c8eaf394bbd135e580d9f9055e))
+
 ### [1.2.1](https://github.com/sonrad10/while.js/compare/v1.2.0...v1.2.1) (2021-06-16)
 
 
