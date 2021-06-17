@@ -1,7 +1,8 @@
 import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_PROG_PARTIAL, AST_WHILE } from "../types/ast";
 import { BinaryTree } from "../types/Trees";
 import lexer from "../linter/lexer";
-import parser, { ErrorType } from "../linter/parser";
+import parser from "../linter/parser";
+import { ErrorType } from "../utils/errorManager";
 import { OP_TYPE } from "../types/tokens";
 
 /**

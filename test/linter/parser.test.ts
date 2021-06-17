@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import parser, { ErrorType } from "../../src/linter/parser";
+import parser from "../../src/linter/parser";
 import lexer from "../../src/linter/lexer";
 import {
 	TKN_CONS,
@@ -10,6 +10,7 @@ import {
 } from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
 import { expr, idnt, opr, sym, ukwn } from "../utils";
+import { ErrorType } from "../../src";
 
 chai.config.truncateThreshold = 0;
 

@@ -17,14 +17,9 @@ import {
 } from "../../types/tokens";
 import { AST_CMD, AST_CMD_PARTIAL, AST_EXPR, AST_EXPR_PARTIAL, AST_PROG, AST_PROG_PARTIAL } from "../../types/ast";
 import Position, { incrementPos } from "../../types/position";
-
-/**
- * Type representing an error message at a position in the input program
- */
-export type ErrorType = {
-	position: Position,
-	message: string,
-}
+import {
+	ErrorManager as BaseErrorManager, ErrorType
+} from "../../utils/errorManager";
 
 /**
  * Internal representation for the result status of an operation.
@@ -36,31 +31,9 @@ enum ParseStatus {
 	EOI,
 }
 
-class ErrorManager {
-	private readonly _errors: ErrorType[];
-
-	public constructor() {
-		this._errors = [];
-	}
-
-	/**
-	 * List of all the errors added to this object
-	 */
-	public get errors(): ErrorType[] {
-		return this._errors;
-	}
-
-	/**
-	 * Add an error to the list
-	 * @param position	The position of the error in the program
-	 * @param message	Message describing the error
-	 */
-	public addError(position: Position, message: string): this {
-		this._errors.push({
-			message,
-			position: {...position},
-		});
-		return this;
+class ErrorManager extends BaseErrorManager {
+	constructor() {
+		super();
 	}
 
 	public unexpectedToken(position: Position, actual?: string, ...expected: string[]): this {
