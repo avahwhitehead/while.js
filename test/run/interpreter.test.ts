@@ -1,11 +1,8 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import lexer from "../../src/linter/lexer";
-import { parser } from "../../src";
 import Interpreter from "../../src/run/Interpreter";
 import { a, t, tn, treeToString } from "../utils";
-import { AST_PROG } from "../../src/types/ast";
 
 chai.config.truncateThreshold = 0;
 
@@ -85,8 +82,9 @@ describe('Interpreter', function () {
 	describe('prog_ident', function () {
 		for (let tree of [null, tn(5), t(t(null, null), t(null, null))]) {
 			it(treeToString(tree), function () {
-				const [AST,] = parser(lexer(prog_ident)) as [AST_PROG,any];
-				let interpreter = new Interpreter(AST, tree);
+				let res = Interpreter.parse(prog_ident, tree);
+				expect(res.success).to.be.true;
+				let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 				expect(
 					interpreter.run()
 				).to.deep.equal(
@@ -98,22 +96,25 @@ describe('Interpreter', function () {
 
 	describe('prog_empty', function () {
 		it('nil => nil', function () {
-			const [AST,] = parser(lexer(prog_empty)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(prog_empty, null);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(null);
 		});
 		it('<nil.nil> => nil', function () {
-			const [AST,] = parser(lexer(prog_empty)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, t(null, null));
+			let res = Interpreter.parse(prog_empty, t(null, null));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(null);
 		});
 		it('<<nil.nil>.<nil.nil>> => nil', function () {
-			const [AST,] = parser(lexer(prog_empty)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, t(t(null, null), t(null, null)));
+			let res = Interpreter.parse(prog_empty, t(t(null, null), t(null, null)));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(null);
@@ -122,8 +123,9 @@ describe('Interpreter', function () {
 
 	describe('prog_reverse', function () {
 		it('nil => nil', function () {
-			const [AST,] = parser(lexer(prog_reverse)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(prog_reverse, null);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -131,8 +133,9 @@ describe('Interpreter', function () {
 			);
 		});
 		it('[1,2,3] => [3,2,1]', function () {
-			const [AST,] = parser(lexer(prog_reverse)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, a(1, 2, 3));
+			let res = Interpreter.parse(prog_reverse, a(1, 2, 3));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -143,8 +146,9 @@ describe('Interpreter', function () {
 
 	describe('prog_concat', function () {
 		it('<3.4> => 7', function () {
-			const [AST,] = parser(lexer(prog_concat)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, t(tn(3), tn(4)));
+			let res = Interpreter.parse(prog_concat, t(tn(3), tn(4)));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -155,36 +159,41 @@ describe('Interpreter', function () {
 
 	describe('prog_test', function () {
 		it('0 => 2', function () {
-			const [AST,] = parser(lexer(prog_test)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, tn(0));
+			let res = Interpreter.parse(prog_test, tn(0));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(tn(2));
 		});
 		it('1 => 2', function () {
-			const [AST,] = parser(lexer(prog_test)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, tn(1));
+			let res = Interpreter.parse(prog_test, tn(1));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(tn(2));
 		});
 		it('2 => 1', function () {
-			const [AST,] = parser(lexer(prog_test)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, tn(2));
+			let res = Interpreter.parse(prog_test, tn(2));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(tn(1));
 		});
 		it('3 => 0', function () {
-			const [AST,] = parser(lexer(prog_test)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, tn(3));
+			let res = Interpreter.parse(prog_test, tn(3));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(tn(0));
 		});
 		it('4 => 0', function () {
-			const [AST,] = parser(lexer(prog_test)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, tn(4));
+			let res = Interpreter.parse(prog_test, tn(4));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(tn(0));
@@ -193,8 +202,9 @@ describe('Interpreter', function () {
 
 	describe('prog_sum', function () {
 		it('[] => 0', function () {
-			const [AST,] = parser(lexer(prog_sum)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(prog_sum, null);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -202,8 +212,9 @@ describe('Interpreter', function () {
 			);
 		});
 		it('[3,3] => 6', function () {
-			const [AST,] = parser(lexer(prog_sum)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, a(3, 3));
+			let res = Interpreter.parse(prog_sum, a(3, 3));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -211,8 +222,9 @@ describe('Interpreter', function () {
 			);
 		});
 		it('[5,4,3,2,1] => 15', function () {
-			const [AST,] = parser(lexer(prog_sum)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, a(5, 4, 3, 2, 1));
+			let res = Interpreter.parse(prog_sum, a(5, 4, 3, 2, 1));
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -223,8 +235,9 @@ describe('Interpreter', function () {
 
 	describe('prog_many_cons', function () {
 		it('any => <<nil.<nil.nil>>.<nil.nil>', function () {
-			const [AST,] = parser(lexer(prog_many_cons)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(prog_many_cons, null);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -235,10 +248,12 @@ describe('Interpreter', function () {
 
 	describe('hd fallback', function () {
 		it('hd nil => nil', function () {
-			const [AST,] = parser(lexer(
-				`prog read X { X := hd nil } write X`
-			)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(
+				`prog read X { X := hd nil } write X`,
+				t(t(null, null), t(null, null))
+			);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(
@@ -249,10 +264,12 @@ describe('Interpreter', function () {
 
 	describe('tl fallback', function () {
 		it('tl nil => nil', function () {
-			const [AST,] = parser(lexer(
-				`prog read X { X := tl nil } write X`
-			)) as [AST_PROG,any];
-			let interpreter = new Interpreter(AST, null);
+			let res = Interpreter.parse(
+				`prog read X { X := tl nil } write X`,
+				t(t(null, null), t(null, null))
+			);
+			expect(res.success).to.be.true;
+			let interpreter = (res as {success: true,interpreter: Interpreter}).interpreter;
 			expect(
 				interpreter.run()
 			).to.deep.equal(

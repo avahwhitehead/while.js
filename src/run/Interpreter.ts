@@ -67,7 +67,7 @@ export default class Interpreter {
 	 */
 	public static parse(program: string, inputTree: BinaryTree, props?: InterpreterProps): { success: true, interpreter: Interpreter }|{ success: false, errors: ErrorType[] } {
 		//Pass the program through the lexer and parer
-		let tokenList = lexer(program);
+		let [tokenList,] = lexer(program);
 		let [ast, errors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList);
 
 		if (ast.complete) {

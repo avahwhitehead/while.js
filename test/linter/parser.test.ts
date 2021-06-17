@@ -25,9 +25,10 @@ describe('Parser', function () {
 				output: idnt('X', 0, 22),
 				body: []
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'ident read X {} write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -59,9 +60,10 @@ describe('Parser', function () {
 					}
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,[]] = lexer(
 				'add1 read X { Y := cons nil X } write Y'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -107,14 +109,15 @@ describe('Parser', function () {
 					}
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'add2\n' +
 				'read X {\n' +
 				'	Y := cons nil X;\n' +
 				'	Y := cons nil Y\n' +
 				'}\n' +
 				'write Y'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -152,9 +155,10 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { while X { X := tl X } } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -199,9 +203,10 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -268,9 +273,10 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -332,9 +338,10 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -394,9 +401,10 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -431,9 +439,10 @@ describe('Parser', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := hd hd hd X } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -468,9 +477,10 @@ describe('Parser', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := tl tl tl X } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -493,17 +503,19 @@ describe('Parser Error Checker', function () {
 				message: 'Unexpected end of input: Missing program name',
 				position: { row: 0, col: 0 }
 			}];
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				''
-			));
+			);
+			const res = parser(tokens);
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
 		});
 
 		it(`"name"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL = {
 				type: 'program',
 				complete: false,
@@ -521,9 +533,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name {}"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name {}'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -547,9 +560,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"{}"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'{}'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -577,9 +591,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -597,9 +612,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read X {'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -617,10 +633,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`no closing bracket onwards`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read Y {\n'
 				+ '  X := Y'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -649,9 +666,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read {}"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read {}'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -675,9 +693,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {}"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read X {}'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -697,9 +716,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} write"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read X {} write'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -718,9 +738,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} X"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read X {} X'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -745,9 +766,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name X {} write X"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name X {} write X'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -765,9 +787,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} write"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read X {} write'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -785,9 +808,10 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"read X {} write X"`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'read X {} write X'
-			));
+			);
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -838,9 +862,10 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { while X { X := tl X } } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -885,9 +910,10 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -954,9 +980,10 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1018,9 +1045,10 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1080,9 +1108,10 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1117,9 +1146,10 @@ describe('Parser Error Checker', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := hd hd hd X } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1154,9 +1184,10 @@ describe('Parser Error Checker', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'prog read X { X := tl tl tl X } write X'
-			))).to.deep.equal([
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
