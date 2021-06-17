@@ -1,7 +1,8 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import lexer, {
+import lexer from "../../src/linter/lexer";
+import {
 	EXPR_TOKEN,
 	OP_TOKEN,
 	SYMBOL_TOKEN,
@@ -19,7 +20,7 @@ import lexer, {
 	TKN_TL,
 	TKN_WHILE,
 	TKN_WRITE
-} from "../../src/linter/lexer";
+} from "../../src/types/tokens";
 import { expr, idnt, opr, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;

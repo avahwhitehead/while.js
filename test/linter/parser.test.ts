@@ -2,11 +2,12 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import parser, { ErrorType } from "../../src/linter/parser";
-import lexer, {
+import lexer from "../../src/linter/lexer";
+import {
 	TKN_CONS,
 	TKN_HD,
 	TKN_TL,
-} from "../../src/linter/lexer";
+} from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
 import { expr, idnt, opr, sym, ukwn } from "../utils";
 

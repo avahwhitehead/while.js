@@ -8,7 +8,7 @@ import {
 	SYMBOL_TOKEN,
 	SYMBOL_TYPE,
 	UNKNOWN_TYPE
-} from "../src/linter/lexer";
+} from "../src/types/tokens";
 import Position from "../src/types/position";
 
 //Useful functions

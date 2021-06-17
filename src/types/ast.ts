@@ -1,7 +1,4 @@
-import { IDENT_TYPE, OP_TYPE } from "../linter/lexer";
-
-//TODO: Improve AST structure using the commented version below.
-//	Add start and end positions for better error highlighting
+import { IDENT_TYPE, OP_TYPE } from "./tokens";
 
 //name read input { ... } write output
 export type AST_PROG = {

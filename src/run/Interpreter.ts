@@ -1,7 +1,8 @@
 import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_PROG_PARTIAL, AST_WHILE } from "../types/ast";
 import { BinaryTree } from "../types/Trees";
-import lexer, { OP_TYPE } from "../linter/lexer";
+import lexer from "../linter/lexer";
 import parser, { ErrorType } from "../linter/parser";
+import { OP_TYPE } from "../types/tokens";
 
 /**
  * Constructor options for the {@link Interpreter} class

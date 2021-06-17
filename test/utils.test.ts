@@ -1,4 +1,3 @@
-import { BinaryTree } from "../src/types/Trees";
 import { describe, it } from "mocha";
 import { expect } from "chai";
 import { a, t, tn } from "./utils";

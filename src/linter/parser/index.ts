@@ -14,7 +14,7 @@ import {
 	TKN_WHILE,
 	TKN_WRITE,
 	WHILE_TOKEN
-} from "../lexer";
+} from "../../types/tokens";
 import { AST_CMD, AST_CMD_PARTIAL, AST_EXPR, AST_EXPR_PARTIAL, AST_PROG, AST_PROG_PARTIAL } from "../../types/ast";
 import Position, { incrementPos } from "../../types/position";
 
