@@ -1,4 +1,5 @@
 import Position, { incrementPos } from "../../types/position";
+import { ErrorManager, ErrorType } from "../../utils/errorManager";
 import {
 	EXPR_TOKEN, OP_TOKEN,
 	SYMBOL_TOKEN,
@@ -35,6 +36,8 @@ const OP_LIST: OP_TOKEN[] = [
  * @param program	The program string
  */
 function read_identifier(program: string): string|null {
+	//Read the longest identifier possible from the program string
+	//Case insensitive, starts with a letter or underscore, optionally followed by any number of alphanumeric chars and underscores
 	const exec = /^[a-z_]\w*/i.exec(program);
 	if (exec === null) return null;
 	return exec[0];
@@ -43,7 +46,7 @@ function read_identifier(program: string): string|null {
 /**
  * Read a token from the start of the program string
  * @param program	The program string
- * @param pos
+ * @param pos		The position counter
  */
 function read_next_token(program: string, pos: Position): WHILE_TOKEN|null {
 	//Attempt to read a symbol
@@ -97,7 +100,9 @@ function read_next_token(program: string, pos: Position): WHILE_TOKEN|null {
  * Lex a program string into a list of tokens
  * @param program	The program to lex
  */
-export default function lexer(program: string): WHILE_TOKEN[] {
+export default function lexer(program: string): [WHILE_TOKEN[], ErrorType[]] {
+	let errorManager: ErrorManager = new ErrorManager();
+
 	//Maintain a counter of how many characters have been processed
 	let pos: Position = { row:0, col:0 };
 	//Hold the produced token list
@@ -143,10 +148,14 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		//Read the next token in the program
 		let token: WHILE_TOKEN | null = read_next_token(program, {...pos});
 		if (token === null) {
+			//Return the first character from the program string
+			let next = program.charAt(0);
+			//Add an error at the current position
+			errorManager.addError(pos, `Unknown token "${next}"`);
 			//Mark unrecognised tokens
 			token = {
 				type: 'unknown',
-				value: program.charAt(0),
+				value: next,
 				pos: {...pos},
 			};
 		}
@@ -156,6 +165,6 @@ export default function lexer(program: string): WHILE_TOKEN[] {
 		incrementPos(pos, token.value);
 		program = program.substring(token.value.length)
 	}
-	//Return the produced token list
-	return res;
+	//Return the produced token list and any created errors
+	return [res, errorManager.errors,];
 }

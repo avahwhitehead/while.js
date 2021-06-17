@@ -21,7 +21,7 @@ import {
 	TKN_WHILE,
 	TKN_WRITE
 } from "../../src/types/tokens";
-import { expr, idnt, opr, sym, ukwn } from "../utils";
+import { error, expr, idnt, opr, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;
 
@@ -48,29 +48,32 @@ describe('Lexer', function () {
 	describe(`atoms`, function () {
 		for (let atom of SYMBOL_ATOMS) {
 			it(`should accept symbol '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal(
+				expect(lexer(atom)).to.deep.equal([
 					[
 						sym(atom, 0, 0)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		}
 		for (let atom of EXPR_ATOMS) {
 			it(`should accept expression '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal(
+				expect(lexer(atom)).to.deep.equal([
 					[
 						expr(atom, 0, 0)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		}
 		for (let atom of OP_ATOMS) {
 			it(`should accept operation '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal(
+				expect(lexer(atom)).to.deep.equal([
 					[
 						opr(atom, 0, 0)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		}
 	});
@@ -78,11 +81,12 @@ describe('Lexer', function () {
 	describe(`identifiers`, function () {
 		for (let atom of ['nil', 'X', 'Y', 'XY', 'my_variable_name']) {
 			it(`should accept identifier '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal(
+				expect(lexer(atom)).to.deep.equal([
 					[
 						idnt(atom, 0, 0)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		}
 	});
@@ -90,21 +94,45 @@ describe('Lexer', function () {
 	describe(`invalid atoms`, function () {
 		for (let atom of [':', '#']) {
 			it(`should reject '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal(
+				expect(lexer(atom)).to.deep.equal([
 					[
 						ukwn(atom, 0, 0)
+					],
+					[
+						error(`Unknown token "${atom}"`, 0, 0)
 					]
-				);
+				]);
 			});
 		}
+		it(`should produce errors for adjacent invalid tokens`, function () {
+			expect(lexer(
+				`prog -+ read #`
+			)).to.deep.equal([
+				[
+					idnt('prog', 0, 0),
+					ukwn('-', 0, 5),
+					ukwn('+', 0, 6),
+					expr(TKN_READ, 0, 8),
+					ukwn('#', 0, 13),
+				],
+				[
+					error(`Unknown token "-"`, 0, 5),
+					error(`Unknown token "+"`, 0, 6),
+					error(`Unknown token "#"`, 0, 13),
+				]
+			]);
+		});
 		describe(`numbers`, function () {
 			for (let atom of ['0', '1', '2', '9']) {
 				it(`should reject '${atom}'`, function () {
-					expect(lexer(atom)).to.deep.equal(
+					expect(lexer(atom)).to.deep.equal([
 						[
 							ukwn(atom, 0, 0)
+						],
+						[
+							error(`Unknown token "${atom}"`, 0, 0)
 						]
-					);
+					]);
 				});
 			}
 		});
@@ -115,7 +143,7 @@ describe('Lexer', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
 					'ident read X {} write X'
-				)).to.deep.equal(
+				)).to.deep.equal([
 					[
 						idnt('ident', 0, 0),
 						expr(TKN_READ, 0, 6),
@@ -124,15 +152,16 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 0, 14),
 						expr(TKN_WRITE, 0, 16),
 						idnt('X', 0, 22)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		});
 		describe('add 1 program', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
 					'add1 read X { Y := cons nil X } write Y'
-				)).to.deep.equal(
+				)).to.deep.equal([
 					[
 						idnt('add1', 0, 0),
 						expr(TKN_READ, 0, 5),
@@ -146,8 +175,9 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 0, 30),
 						expr(TKN_WRITE, 0, 32),
 						idnt('Y', 0, 38)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		});
 
@@ -160,7 +190,7 @@ describe('Lexer', function () {
 					'	Y := cons nil Y\n' +
 					'}\n' +
 					'write Y'
-				)).to.deep.equal(
+				)).to.deep.equal([
 					[
 						idnt('add2', 0, 0),
 						expr(TKN_READ, 1, 0),
@@ -181,8 +211,9 @@ describe('Lexer', function () {
 						sym(TKN_BLOCK_CLS, 4, 0),
 						expr(TKN_WRITE, 5, 0),
 						idnt('Y', 5, 6)
-					]
-				);
+					],
+					[]
+				]);
 			});
 		});
 
@@ -196,7 +227,7 @@ describe('Lexer', function () {
 						'	//Do something\n' +
 						'}\n' +
 						'write X'
-					)).to.deep.equal(
+					)).to.deep.equal([
 						[
 							idnt('prog', 1, 0),
 							expr(TKN_READ, 2, 0),
@@ -206,8 +237,9 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 4, 0),
 							expr(TKN_WRITE, 5, 0),
 							idnt('X', 5, 6)
-						]
-					);
+						],
+						[]
+					]);
 				});
 			});
 
@@ -219,7 +251,7 @@ describe('Lexer', function () {
 						'	X := tl X //Get the right child\n' +
 						'}\n' +
 						'write X'
-					)).to.deep.equal(
+					)).to.deep.equal([
 						[
 							idnt('prog', 0, 0),
 							expr(TKN_READ, 1, 0),
@@ -232,8 +264,9 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 3, 0),
 							expr(TKN_WRITE, 4, 0),
 							idnt('X', 4, 6)
-						]
-					);
+						],
+						[]
+					]);
 				});
 			});
 
@@ -245,7 +278,7 @@ describe('Lexer', function () {
 						'	X := tl (*Get the right child*) X\n' +
 						'}\n' +
 						'write X'
-					)).to.deep.equal(
+					)).to.deep.equal([
 						[
 							idnt('prog', 0, 0),
 							expr(TKN_READ, 1, 0),
@@ -258,8 +291,9 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 3, 0),
 							expr(TKN_WRITE, 4, 0),
 							idnt('X', 4, 6)
-						]
-					);
+						],
+						[]
+					]);
 				});
 			});
 
@@ -275,7 +309,7 @@ describe('Lexer', function () {
 						'	*)\n' +
 						'}\n' +
 						'write X'
-					)).to.deep.equal(
+					)).to.deep.equal([
 						[
 							idnt('prog', 0, 0),
 							expr(TKN_READ, 1, 0),
@@ -285,8 +319,9 @@ describe('Lexer', function () {
 							sym(TKN_BLOCK_CLS, 7, 0),
 							expr(TKN_WRITE, 8, 0),
 							idnt('X', 8, 6)
-						]
-					);
+						],
+						[]
+					]);
 				});
 			});
 		});
@@ -296,25 +331,28 @@ describe('Lexer', function () {
 				it('EOL comment', function () {
 					expect(lexer(
 						'//An empty file'
-					)).to.deep.equal(
+					)).to.deep.equal([
+						[],
 						[]
-					);
+					]);
 				});
 				it('inline comment', function () {
 					expect(lexer(
 						'(*An empty file*)'
-					)).to.deep.equal(
+					)).to.deep.equal([
+						[],
 						[]
-					);
+					]);
 				});
 				it('multiline comment', function () {
 					expect(lexer(
 						'(*\n' +
 						'An empty file\n' +
 						'*)\n'
-					)).to.deep.equal(
+					)).to.deep.equal([
+						[],
 						[]
-					);
+					]);
 				});
 			});
 		});

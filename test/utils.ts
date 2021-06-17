@@ -1,4 +1,5 @@
 import { BinaryTree } from "../src/types/Trees";
+import { ErrorType } from "../src";
 import {
 	EXPR_TOKEN,
 	EXPR_TYPE,
@@ -114,5 +115,16 @@ export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYP
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+	};
+}
+
+
+export function error(msg: string, pos: Position): ErrorType;
+export function error(msg: string, pos: number, col: number): ErrorType;
+export function error(msg: string, pos: Position|number, col?: number): ErrorType {
+	return {
+		message: msg,
+		//@ts-ignore
+		position: (typeof pos === 'number') ? { row: pos, col: col } : pos,
 	};
 }
