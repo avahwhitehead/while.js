@@ -21,7 +21,25 @@ import {
 	TKN_WHILE,
 	TKN_WRITE
 } from "../../src/types/tokens";
-import { error, expr, idnt, opr, sym, ukwn } from "../utils";
+import {
+	EXPR_TOKEN_EXTD,
+	OP_TOKEN_EXTD,
+	SYMBOL_TOKEN_EXTD,
+	TKN_CASE,
+	TKN_COLON,
+	TKN_COMMA,
+	TKN_DEFAULT,
+	TKN_DOT,
+	TKN_EQL,
+	TKN_FALSE,
+	TKN_LIST_CLS,
+	TKN_LIST_OPN,
+	TKN_MCRO_CLS,
+	TKN_MCRO_OPN,
+	TKN_SWITCH,
+	TKN_TRUE,
+} from "../../src/types/extendedTokens";
+import { e_expr, e_opr, e_sym, error, expr, idnt, nmbr, opr, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;
 
@@ -44,55 +62,169 @@ const EXPR_ATOMS: EXPR_TOKEN[] = [
 	TKN_WHILE,
 ];
 
+const SYMBOL_ATOMS_EXTD: SYMBOL_TOKEN_EXTD[] = [
+	//Symbols
+	TKN_EQL,
+	TKN_LIST_OPN,
+	TKN_LIST_CLS,
+	TKN_MCRO_OPN,
+	TKN_MCRO_CLS,
+	TKN_COMMA,
+	TKN_DOT,
+	TKN_COLON,
+];
+const EXPR_ATOMS_EXTD: EXPR_TOKEN_EXTD[] = [
+	//Expressions
+	TKN_SWITCH,
+	TKN_CASE,
+	TKN_DEFAULT,
+];
+const OP_ATOMS_EXTD: OP_TOKEN_EXTD[] = [
+	//Operations
+	TKN_TRUE,
+	TKN_FALSE,
+];
+
 describe('Lexer', function () {
-	describe(`atoms`, function () {
-		for (let atom of SYMBOL_ATOMS) {
-			it(`should accept symbol '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal([
-					[
-						sym(atom, 0, 0)
-					],
-					[]
-				]);
+	for (let isPure of [false, true]) {
+		describe(`${isPure ? 'Pure' : 'Extended'} Lexer`, function () {
+			describe(`symbols`, function () {
+				for (let atom of SYMBOL_ATOMS) {
+					it(`should accept '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								sym(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
 			});
-		}
-		for (let atom of EXPR_ATOMS) {
-			it(`should accept expression '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal([
-					[
-						expr(atom, 0, 0)
-					],
-					[]
-				]);
+			describe(`symbols (extd)`, function () {
+				for (let atom of SYMBOL_ATOMS_EXTD) {
+					it(`should ${isPure ? 'reject' : 'accept'} '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								isPure ? ukwn(atom, 0, 0) : e_sym(atom, 0, 0)
+							],
+							isPure ? [error(`Unknown token "${atom}"`, 0, 0)] : []
+						]);
+					});
+				}
 			});
-		}
-		for (let atom of OP_ATOMS) {
-			it(`should accept operation '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal([
-					[
-						opr(atom, 0, 0)
-					],
-					[]
-				]);
-			});
-		}
-	});
 
-	describe(`identifiers`, function () {
-		for (let atom of ['nil', 'X', 'Y', 'XY', 'my_variable_name']) {
-			it(`should accept identifier '${atom}'`, function () {
-				expect(lexer(atom)).to.deep.equal([
-					[
-						idnt(atom, 0, 0)
-					],
-					[]
-				]);
+			describe(`expressions`, function () {
+				for (let atom of EXPR_ATOMS) {
+					it(`should accept expression '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								expr(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
+			})
+			describe(`expressions (extd)`, function () {
+				for (let atom of EXPR_ATOMS_EXTD) {
+					it(`should ${isPure ? 'reject' : 'accept'} '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								isPure ? idnt(atom, 0, 0) : e_expr(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
 			});
-		}
-	});
 
-	describe(`invalid atoms`, function () {
-		for (let atom of [':', '#']) {
+			describe(`operations`, function () {
+				for (let atom of OP_ATOMS) {
+					it(`should accept operation '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								opr(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
+			});
+			describe(`operations (extd)`, function () {
+				for (let atom of OP_ATOMS_EXTD) {
+					it(`should ${isPure ? 'reject' : 'accept'} '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								isPure ? idnt(atom, 0, 0) : e_opr(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
+			});
+
+			describe(`identifiers`, function () {
+				for (let atom of ['nil', 'X', 'Y', 'XY', 'my_variable_name']) {
+					it(`should accept identifier '${atom}'`, function () {
+						expect(
+							lexer(atom, {pureOnly: isPure})
+						).to.deep.equal([
+							[
+								idnt(atom, 0, 0)
+							],
+							[]
+						]);
+					});
+				}
+			});
+
+			describe(`numbers`, function () {
+				for (let numSt of ['0', '1', '2', '99']) {
+					if (isPure) {
+						it(`should reject '${numSt}'`, function () {
+							expect(
+								lexer(numSt, {pureOnly:isPure})
+							).to.deep.equal([
+								numSt.split('').map((c, i) =>
+									ukwn(c, 0, i)
+								),
+								numSt.split('').map((c, i) =>
+									error(`Unknown token "${c}"`, 0, i)
+								)
+							]);
+						});
+					} else {
+						let num: number = Number.parseInt(numSt);
+						it(`should accept '${numSt}'`, function () {
+							expect(
+								lexer(numSt, {pureOnly:isPure})
+							).to.deep.equal([
+								[
+									nmbr(num, 0, 0)
+								],
+								[]
+							]);
+						});
+					}
+				}
+			});
+		});
+	}
+
+	describe(`Invalid atoms`, function () {
+		for (let atom of ['~', '#']) {
 			it(`should reject '${atom}'`, function () {
 				expect(lexer(atom)).to.deep.equal([
 					[
@@ -122,23 +254,9 @@ describe('Lexer', function () {
 				]
 			]);
 		});
-		describe(`numbers`, function () {
-			for (let atom of ['0', '1', '2', '9']) {
-				it(`should reject '${atom}'`, function () {
-					expect(lexer(atom)).to.deep.equal([
-						[
-							ukwn(atom, 0, 0)
-						],
-						[
-							error(`Unknown token "${atom}"`, 0, 0)
-						]
-					]);
-				});
-			}
-		});
 	});
 
-	describe('programs', function () {
+	describe('Pure programs', function () {
 		describe('identity program', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
@@ -157,6 +275,7 @@ describe('Lexer', function () {
 				]);
 			});
 		});
+
 		describe('add 1 program', function () {
 			it(`should be accepted`, function () {
 				expect(lexer(
@@ -354,6 +473,121 @@ describe('Lexer', function () {
 						[]
 					]);
 				});
+			});
+		});
+	});
+
+	describe('Extended programs', function () {
+		describe('switch', function () {
+			it(`should be accepted`, function () {
+				expect(lexer(
+					's read X {\n' +
+					'  switch X {\n' +
+					'    case tl tl X:\n' +
+					'      Y := cons nil (cons nil nil)\n' +
+					'    case tl X:\n' +
+					'      Y := cons nil nil\n' +
+					'    default:\n' +
+					'      Y := nil\n' +
+					'  }\n' +
+					'} write Y'
+				)).to.deep.equal([
+					[
+						idnt('s', 0, 0),
+						expr(TKN_READ, 0, 2),
+						idnt('X', 0, 7),
+						sym(TKN_BLOCK_OPN, 0, 9),
+							e_expr(TKN_SWITCH, 1, 2),
+							idnt('X', 1, 9),
+							sym(TKN_BLOCK_OPN, 1, 11),
+								e_expr(TKN_CASE, 2, 4),
+								e_opr(TKN_TL, 2, 9),
+								e_opr(TKN_TL, 2, 12),
+								idnt('X', 2, 15),
+								e_sym(TKN_COLON, 2, 16),
+									idnt('Y', 3, 6),
+									sym(TKN_ASSGN, 3, 8),
+									e_opr(TKN_CONS, 3, 11),
+									idnt('nil', 3, 16),
+									e_sym(TKN_PREN_OPN, 3, 20),
+									e_opr(TKN_CONS, 3, 21),
+									idnt('nil', 3, 26),
+									idnt('nil', 3, 30),
+									e_sym(TKN_PREN_CLS, 3, 33),
+
+								e_expr(TKN_CASE, 4, 4),
+								e_opr(TKN_TL, 4, 9),
+								idnt('X', 4, 12),
+								e_sym(TKN_COLON, 4, 13),
+									idnt('Y', 5, 6),
+									sym(TKN_ASSGN, 5, 8),
+									e_opr(TKN_CONS, 5, 11),
+									idnt('nil', 5, 16),
+									idnt('nil', 5, 20),
+
+								e_expr(TKN_DEFAULT, 6, 4),
+								e_sym(TKN_COLON, 6, 11),
+									idnt('Y', 7, 6),
+									sym(TKN_ASSGN, 7, 8),
+									idnt('nil', 7, 11),
+							sym(TKN_BLOCK_CLS, 8, 2),
+						sym(TKN_BLOCK_CLS, 9, 0),
+						expr(TKN_WRITE, 9, 2),
+						idnt('Y', 9, 8)
+					],
+					[]
+				]);
+			});
+		});
+
+		describe('equality', function () {
+			it(`should be accepted`, function () {
+				expect(lexer(
+					'eql read X {\n' +
+					'  C := cons nil cons nil nil\n' +
+					'  if X = C {\n' +
+					'    res := cons nil nil\n' +
+					'  } else {\n' +
+					'    res := nil\n' +
+					'  }\n' +
+					'} write res'
+				)).to.deep.equal([
+					[
+						idnt('eql', 0, 0),
+						expr(TKN_READ, 0, 4),
+						idnt('X', 0, 9),
+						sym(TKN_BLOCK_OPN, 0, 11),
+							idnt('C', 1, 2),
+							sym(TKN_ASSGN, 1, 4),
+							opr(TKN_CONS, 1, 7),
+							idnt('nil', 1, 12),
+							opr(TKN_CONS, 1, 16),
+							idnt('nil', 1, 21),
+							idnt('nil', 1, 25),
+
+							expr(TKN_IF, 2, 2),
+							idnt('X', 2, 5),
+							e_sym(TKN_EQL, 2, 7),
+							idnt('C', 2, 9),
+							sym(TKN_BLOCK_OPN, 2, 11),
+								idnt('res', 3, 4),
+								sym(TKN_ASSGN, 3, 8),
+								opr(TKN_CONS, 3, 11),
+								idnt('nil', 3, 16),
+								idnt('nil', 3, 20),
+							sym(TKN_BLOCK_CLS, 4, 2),
+							expr(TKN_ELSE, 4, 4),
+							sym(TKN_BLOCK_OPN, 4, 9),
+								idnt('res', 5, 4),
+								sym(TKN_ASSGN, 5, 8),
+								idnt('nil', 5, 11),
+							sym(TKN_BLOCK_CLS, 6, 2),
+						sym(TKN_BLOCK_CLS, 7, 0),
+						expr(TKN_WRITE, 7, 2),
+						idnt('res', 7, 8)
+					],
+					[]
+				]);
 			});
 		});
 	});

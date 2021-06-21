@@ -13,7 +13,7 @@ export default interface Position {
 };
 
 /**
- * Automatically increment the row/column pointeers to a position object from a string.
+ * Automatically increment the row/column pointers to a position object from a string.
  * At each {@code \n} the row counter is incremented and the column counter reset.
  * Every other character increments the column counter.
  * @param pos	The Position object

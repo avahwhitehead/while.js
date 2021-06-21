@@ -7,6 +7,7 @@ import {
 	TKN_CONS,
 	TKN_HD,
 	TKN_TL,
+	WHILE_TOKEN,
 } from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
 import { expr, idnt, opr, sym, ukwn } from "../utils";
@@ -26,8 +27,9 @@ describe('Parser', function () {
 				body: []
 			};
 			let [tokens,] = lexer(
-				'ident read X {} write X'
-			);
+				'ident read X {} write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -60,9 +62,10 @@ describe('Parser', function () {
 					}
 				]
 			};
-			let [tokens,[]] = lexer(
-				'add1 read X { Y := cons nil X } write Y'
-			);
+			let [tokens,] = lexer(
+				'add1 read X { Y := cons nil X } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -115,8 +118,9 @@ describe('Parser', function () {
 				'	Y := cons nil X;\n' +
 				'	Y := cons nil Y\n' +
 				'}\n' +
-				'write Y'
-			);
+				'write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -156,8 +160,9 @@ describe('Parser', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { while X { X := tl X } } write X'
-			);
+				'prog read X { while X { X := tl X } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -204,8 +209,9 @@ describe('Parser', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			);
+				'prog read X { if (tl X) { Y := cons nil nil } } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -274,8 +280,9 @@ describe('Parser', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			);
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -339,8 +346,9 @@ describe('Parser', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			);
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -402,8 +410,9 @@ describe('Parser', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			);
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -440,8 +449,9 @@ describe('Parser', function () {
 				}]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := hd hd hd X } write X'
-			);
+				'prog read X { X := hd hd hd X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -478,8 +488,9 @@ describe('Parser', function () {
 				}]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := tl tl tl X } write X'
-			);
+				'prog read X { X := tl tl tl X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -504,8 +515,9 @@ describe('Parser Error Checker', function () {
 				position: { row: 0, col: 0 }
 			}];
 			let [tokens,] = lexer(
-				''
-			);
+				'',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
@@ -513,8 +525,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name"`, function () {
 			let [tokens,] = lexer(
-				'name'
-			);
+				'name',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL = {
 				type: 'program',
@@ -534,8 +547,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name {}"`, function () {
 			let [tokens,] = lexer(
-				'name {}'
-			);
+				'name {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -561,8 +575,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"{}"`, function () {
 			let [tokens,] = lexer(
-				'{}'
-			);
+				'{}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -592,8 +607,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read"`, function () {
 			let [tokens,] = lexer(
-				'name read'
-			);
+				'name read',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -613,8 +629,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read X {"`, function () {
 			let [tokens,] = lexer(
-				'name read X {'
-			);
+				'name read X {',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -635,8 +652,9 @@ describe('Parser Error Checker', function () {
 		it(`no closing bracket onwards`, function () {
 			let [tokens,] = lexer(
 				'name read Y {\n'
-				+ '  X := Y'
-			);
+				+ '  X := Y',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -649,11 +667,7 @@ describe('Parser Error Checker', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('X', 1, 2),
-						arg: {
-							type: 'identifier',
-							value: 'Y',
-							pos: { row: 1, col: 7 }
-						}
+						arg: idnt('Y', 0, 32)
 					}
 				],
 			};
@@ -667,8 +681,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read {}"`, function () {
 			let [tokens,] = lexer(
-				'name read {}'
-			);
+				'name read {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -694,8 +709,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read X {}"`, function () {
 			let [tokens,] = lexer(
-				'name read X {}'
-			);
+				'name read X {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -717,8 +733,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read X {} write"`, function () {
 			let [tokens,] = lexer(
-				'name read X {} write'
-			);
+				'name read X {} write',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -739,8 +756,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read X {} X"`, function () {
 			let [tokens,] = lexer(
-				'name read X {} X'
-			);
+				'name read X {} X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -767,8 +785,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name X {} write X"`, function () {
 			let [tokens,] = lexer(
-				'name X {} write X'
-			);
+				'name X {} write X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -788,8 +807,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"name read X {} write"`, function () {
 			let [tokens,] = lexer(
-				'name read X {} write'
-			);
+				'name read X {} write',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -809,8 +829,9 @@ describe('Parser Error Checker', function () {
 
 		it(`"read X {} write X"`, function () {
 			let [tokens,] = lexer(
-				'read X {} write X'
-			);
+				'read X {} write X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
@@ -863,8 +884,9 @@ describe('Parser Error Checker', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { while X { X := tl X } } write X'
-			);
+				'prog read X { while X { X := tl X } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -911,8 +933,9 @@ describe('Parser Error Checker', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			);
+				'prog read X { if (tl X) { Y := cons nil nil } } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -981,8 +1004,9 @@ describe('Parser Error Checker', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			);
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -1046,8 +1070,9 @@ describe('Parser Error Checker', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			);
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -1109,8 +1134,9 @@ describe('Parser Error Checker', function () {
 				]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			);
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -1147,8 +1173,9 @@ describe('Parser Error Checker', function () {
 				}]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := hd hd hd X } write X'
-			);
+				'prog read X { X := hd hd hd X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
@@ -1185,8 +1212,9 @@ describe('Parser Error Checker', function () {
 				}]
 			};
 			let [tokens,] = lexer(
-				'prog read X { X := tl tl tl X } write X'
-			);
+				'prog read X { X := tl tl tl X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
