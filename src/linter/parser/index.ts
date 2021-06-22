@@ -193,17 +193,6 @@ class StateManager {
 	}
 
 	/**
-	 * Add an unexpected type message at the current token
-	 * @param actual	The unexpected value
-	 * @param expected	The expected value(s)
-	 * @example		{@code unexpectedValue('number', '10', '20)} -> {@code "Unexpected number: Expected 20 got 10"}
-	 */
-	public unexpectedType(actual?: string, ...expected: string[]): this {
-		this._errorManager.unexpectedValue(this._pos, 'type', actual, ...expected);
-		return this;
-	}
-
-	/**
 	 * Add an unexpected end-of-input error at the current token
 	 * @param expected	The expected token(s)
 	 */
@@ -494,8 +483,6 @@ function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL
 		return [ParseStatus.OK, []];
 	}
 
-	//TODO: add a special error message for an extra ';' at the end of the last statement in the block
-
 	let res: (AST_CMD|AST_CMD_PARTIAL|null)[] = [];
 	let status: ParseStatus = ParseStatus.OK;
 	while (true) {
@@ -524,7 +511,6 @@ function _readBlock(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL
 			//End of block
 			break;
 		} else {
-			//TODO: Handle missing separator
 			//Report error expecting a separator or a block close
 			state.unexpectedToken(next.value, TKN_SEP, TKN_BLOCK_CLS);
 			status = ParseStatus.ERROR;
