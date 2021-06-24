@@ -10,7 +10,7 @@ import {
 	WHILE_TOKEN,
 } from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
-import { expr, idnt, opr, sym, ukwn } from "../utils";
+import { error, idnt, opr, tn } from "../utils";
 import { ErrorType } from "../../src";
 
 chai.config.truncateThreshold = 0;
@@ -290,6 +290,473 @@ describe('Parser', function () {
 		});
 	});
 
+	describe('switch statement', function () {
+		it(`should accept an empty switch`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 3, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: []
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'  }\n' +
+				'} write Y',
+			{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a switch with only a default`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 5, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 3, 6),
+									arg: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 3, 11),
+										args: [
+											idnt('nil', 3, 16),
+											idnt('nil', 3, 20),
+										],
+									},
+								}
+							],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    default:\n' +
+				'      Y := cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a switch with multiple cases`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 9, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: idnt('nil', 2, 9),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y1', 3, 6),
+										arg: idnt('nil', 3, 12),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y2', 4, 6),
+										arg: idnt('nil', 4, 12),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 5, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 5, 11),
+											args: [
+												idnt('Y1', 5, 16),
+												idnt('Y2', 5, 19),
+											],
+										},
+									},
+								],
+							},
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: {
+									type: 'operation',
+									complete: true,
+									op: opr('cons', 6, 9),
+									args: [
+										idnt('nil', 6, 14),
+										idnt('nil', 6, 18),
+									]
+								},
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 7, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 7, 11),
+											args: [
+												idnt('nil', 7, 16),
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 7, 20),
+													args: [
+														idnt('nil', 7, 25),
+														idnt('nil', 7, 29),
+													],
+												},
+											],
+										},
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y1 := nil;\n' +
+				'      Y2 := nil;\n' +
+				'      Y := cons Y1 Y2\n' +
+				'    case cons nil nil:\n' +
+				'      Y := cons nil cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a full switch with multiple cases`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 11, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: idnt('nil', 2, 9),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y1', 3, 6),
+										arg: idnt('nil', 3, 12),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y2', 4, 6),
+										arg: idnt('nil', 4, 12),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 5, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 5, 11),
+											args: [
+												idnt('Y1', 5, 16),
+												idnt('Y2', 5, 19),
+											],
+										},
+									},
+								],
+							},
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: {
+									type: 'operation',
+									complete: true,
+									op: opr('cons', 6, 9),
+									args: [
+										idnt('nil', 6, 14),
+										idnt('nil', 6, 18),
+									]
+								},
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 7, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 7, 11),
+											args: [
+												idnt('nil', 7, 16),
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 7, 20),
+													args: [
+														idnt('nil', 7, 25),
+														idnt('nil', 7, 29),
+													],
+												},
+											],
+										},
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 9, 6),
+									arg: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 9, 11),
+										args: [
+											idnt('nil', 9, 16),
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('cons', 9, 20),
+												args: [
+													idnt('nil', 9, 25),
+													{
+														type: 'operation',
+														complete: true,
+														op: opr('cons', 9, 29),
+														args: [
+															idnt('nil', 9, 34),
+															idnt('nil', 9, 38),
+														],
+													},
+												],
+											},
+										],
+									},
+								}
+							],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y1 := nil;\n' +
+				'      Y2 := nil;\n' +
+				'      Y := cons Y1 Y2\n' +
+				'    case cons nil nil:\n' +
+				'      Y := cons nil cons nil nil\n' +
+				'    default:\n' +
+				'      Y := cons nil cons nil cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('numbers', function () {
+		it(`extended language should accept 0`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'tree',
+							tree: tn(0)
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 0\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept numbers`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'tree',
+							tree: tn(7)
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 7\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept "long" numbers`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'tree',
+							tree: tn(12)
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 12\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`pure language should reject numbers`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: false,
+						ident: idnt('Y', 1, 2),
+						arg: null
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 7\n' +
+				'} write Y',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[], ErrorType[]];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[
+					error(`Unexpected token "7": Expected an expression or an identifier`, 1, 7)
+				]
+			]);
+		});
+	});
+
 	describe('nested operations', function () {
 		it(`should correctly parse nested cons`, function () {
 			let expected: AST_PROG = {
@@ -499,6 +966,10 @@ describe('Parser', function () {
 	});
 });
 
+//TODO: make sure switches don't accept empty cases
+
+//TODO: Test error when 'default' is not the final case
+
 describe('Parser Error Checker', function () {
 	describe('error in base structure', function () {
 		it(`empty string`, function () {
@@ -667,7 +1138,7 @@ describe('Parser Error Checker', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('X', 1, 2),
-						arg: idnt('Y', 0, 32)
+						arg: idnt('Y', 1, 7)
 					}
 				],
 			};

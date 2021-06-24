@@ -1,4 +1,6 @@
-import { IDENT_TYPE, OP_TYPE } from "./tokens";
+import { IDENT_TYPE } from "./tokens";
+import { OP_TYPE_EXTD } from "./extendedTokens";
+import { BinaryTree } from "./Trees";
 
 //name read input { ... } write output
 export type AST_PROG = {
@@ -18,21 +20,39 @@ export type AST_PROG_PARTIAL = {
 	output: IDENT_TYPE | null,
 };
 
+export type AST_OP_EQL = {
+	type: 'equal',
+	complete: true,
+	arg1: AST_EXPR,
+	arg2: AST_EXPR,
+};
+export type AST_OP_EQL_PARTIAL = {
+	type: 'equal',
+	complete: false,
+	arg1: AST_EXPR|AST_EXPR_PARTIAL|null,
+	arg2: AST_EXPR|AST_EXPR_PARTIAL|null,
+};
+
+export type AST_TREE = {
+	type: 'tree',
+	tree: BinaryTree,
+}
+
 //cons/hd/tl operations
 export type AST_OP = {
 	type: 'operation',
 	complete: true,
-	op: OP_TYPE,
+	op: OP_TYPE_EXTD,
 	args: AST_EXPR[],
 };
 export type AST_OP_PARTIAL = {
 	type: 'operation',
 	complete: false,
-	op: OP_TYPE|null,
+	op: OP_TYPE_EXTD|null,
 	args: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
-export type AST_EXPR = AST_OP | IDENT_TYPE;
-export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | IDENT_TYPE;
+export type AST_EXPR = AST_OP | AST_OP_EQL | AST_TREE | IDENT_TYPE;
+export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_TREE | IDENT_TYPE;
 
 //Assignment/If/While operations
 export type AST_IF = {
@@ -48,6 +68,44 @@ export type AST_IF_PARTIAL = {
 	condition: AST_EXPR|AST_EXPR_PARTIAL|null,
 	if: (AST_CMD|AST_CMD_PARTIAL|null)[],
 	else: (AST_CMD|AST_CMD_PARTIAL|null)[],
+};
+
+export type AST_SWITCH_DEFAULT = {
+	type: 'switch_default',
+	complete: true,
+	body: AST_CMD[]
+}
+export type AST_SWITCH_DEFAULT_PARTIAL = {
+	type: 'switch_default',
+	complete: false,
+	body: (AST_CMD|AST_CMD_PARTIAL|null)[],
+}
+export type AST_SWITCH_CASE = {
+	type: 'switch_case',
+	complete: true,
+	cond: AST_EXPR,
+	body: AST_CMD[]
+}
+export type AST_SWITCH_CASE_PARTIAL = {
+	type: 'switch_case',
+	complete: false,
+	cond: AST_EXPR|AST_EXPR_PARTIAL|null,
+	body: (AST_CMD|AST_CMD_PARTIAL|null)[],
+}
+
+export type AST_SWITCH = {
+	type: 'switch',
+	complete: true,
+	condition: AST_EXPR,
+	cases: AST_SWITCH_CASE[],
+	default: AST_SWITCH_DEFAULT,
+}
+export type AST_SWITCH_PARTIAL = {
+	type: 'switch',
+	complete: false,
+	condition: AST_EXPR|AST_EXPR_PARTIAL|null,
+	cases: (AST_SWITCH_CASE|AST_SWITCH_CASE_PARTIAL|null)[],
+	default: AST_SWITCH_DEFAULT|AST_SWITCH_DEFAULT_PARTIAL|null,
 };
 
 export type AST_WHILE = {
@@ -75,5 +133,5 @@ export type AST_ASGN_PARTIAL = {
 	ident: IDENT_TYPE|null,
 	arg: AST_EXPR|AST_EXPR_PARTIAL|null,
 };
-export type AST_CMD = AST_ASGN | AST_IF | AST_WHILE;
-export type AST_CMD_PARTIAL = AST_ASGN_PARTIAL | AST_IF_PARTIAL | AST_WHILE_PARTIAL;
+export type AST_CMD = AST_ASGN | AST_IF | AST_WHILE | AST_SWITCH;
+export type AST_CMD_PARTIAL = AST_ASGN_PARTIAL | AST_IF_PARTIAL | AST_WHILE_PARTIAL | AST_SWITCH_PARTIAL;

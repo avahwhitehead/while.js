@@ -1,5 +1,5 @@
 import Position from "./position";
-import { EXPR_TOKEN, OP_TOKEN, SYMBOL_TOKEN } from "./tokens";
+import { EXPR_TOKEN, OP_TOKEN, SYMBOL_TOKEN, WHILE_TOKEN } from "./tokens";
 
 //Symbols
 export type SYMBOL_TOKEN_EXTD = SYMBOL_TOKEN | '=' | ',' | ':' | '[' | ']' | '<' | '>';
@@ -64,4 +64,4 @@ export interface NUMBER_TYPE {
 /**
  * The type of the elements of the token list returned by the lexer for an extended WHILE program
  */
-export type WHILE_TOKEN_EXTD = SYMBOL_TYPE_EXTD | EXPR_TYPE_EXTD | OP_TYPE_EXTD | NUMBER_TYPE;
+export type WHILE_TOKEN_EXTD = WHILE_TOKEN | SYMBOL_TYPE_EXTD | EXPR_TYPE_EXTD | OP_TYPE_EXTD | NUMBER_TYPE;
