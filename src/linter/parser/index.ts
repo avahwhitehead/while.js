@@ -298,9 +298,9 @@ function _numToTree(n: number): BinaryTree {
  * Returns a list containing the parser segment status, and the parsed expression tree.
  * @param state		The parser state manager object
  * @param opts		Configuration options object
- * @returns {[ParseStatus.OK, AST_EXPR]}			The parsed expression tree
- * @returns {[ParseStatus.ERROR, AST_EXPR|AST_EXPR_PARTIAL|null]}	The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
- * @returns {[ParseStatus.EOI, AST_EXPR|AST_EXPR_PARTIAL|null]}		The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ * @returns {AST_EXPR}			The parsed expression tree
+ * @returns {AST_EXPR_PARTIAL}	The parsed expression with {@code null} where information can't be parsed
+ * @returns {null}				If the expression ends
  */
 function _readExpr(state: StateManager, opts: IntParserOpts): AST_EXPR|AST_EXPR_PARTIAL|null {
 	let first = state.next();
@@ -481,6 +481,38 @@ function _readStatementList(state: StateManager, opts: IntParserOpts): [ParseSta
  * @returns {[ParseStatus.EOI, AST_SWITCH_CASE_PARTIAL|AST_SWITCH_DEFAULT_PARTIAL|null]}	The parsed statement with {@code null} where information can't be parsed, or {@code null} if it is unreadable
  */
 function _readCase(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_SWITCH_CASE|AST_SWITCH_CASE_PARTIAL|AST_SWITCH_DEFAULT|AST_SWITCH_DEFAULT_PARTIAL|null] {
+	/**
+	 * Internal function to read the common parts of case/default statements.
+	 * i.e. the ': <body>' parts.
+	 *
+	 * Returns a list containing the parser segment status, and the parsed command tree
+	 * @param state		The parser state manager object
+	 * @returns {[ParseStatus.OK, AST_CMD[]]}			The parsed case statement body
+	 * @returns {[ParseStatus.ERROR, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	The parsed body with {@code null} where information can't be parsed
+	 * @returns {[ParseStatus.EOI, (AST_CMD|AST_CMD_PARTIAL|null)[]]}	The parsed body with {@code null} where information can't be parsed
+	 */
+	function _readCaseBody(state: StateManager): [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] {
+		//Expect a colon after the case definition
+		let [colonStat,]: [ParseStatus,unknown] = state.expect(TKN_COLON);
+		if (colonStat !== ParseStatus.OK) status = colonStat;
+
+		//Parse the case body
+		let body: (AST_CMD | AST_CMD_PARTIAL | null)[];
+		if (colonStat === ParseStatus.EOI) {
+			status = ParseStatus.EOI;
+			body = [];
+		} else if (state.peek()?.value === TKN_CASE || state.peek()?.value === TKN_DEFAULT || state.peek()?.value === TKN_BLOCK_CLS) {
+			status = ParseStatus.ERROR;
+			body = [];
+			state.addError(`Switch cases may not have empty bodies`);
+		} else {
+			let bodyStatus: ParseStatus
+			[bodyStatus, body] = _readStatementList(state, opts);
+			if (bodyStatus !== ParseStatus.OK) status = bodyStatus;
+		}
+		return [status, body];
+	}
+
 	//Read the case/default token from the list
 	let caseTkn: WHILE_TOKEN_EXTD|null = state.next();
 	if (caseTkn === null) return [ParseStatus.EOI, null];
@@ -490,23 +522,25 @@ function _readCase(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 
 	if (caseTkn.value === TKN_DEFAULT) {
 		//The statement is a "default" case
-		//Expect a colon
-		state.expect(TKN_COLON);
-		//Parse the case body
-		let [bodyStatus, body]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readStatementList(state, opts);
-		if (bodyStatus !== ParseStatus.OK) {
-			//Parsed with issues
-			return [bodyStatus, {
+		status = ParseStatus.OK;
+
+		//Read the body of the case statement
+		let [caseStatus, body] = _readCaseBody(state);
+		if (caseStatus !== ParseStatus.OK) status = caseStatus;
+
+		if (status === ParseStatus.OK) {
+			//The statement was all parsed correctly
+			return [status, {
 				type: 'switch_default',
-				complete: false,
-				body: body
+				complete: true,
+				body: body as AST_CMD[]
 			}];
 		}
-		//Parsed with no issues
-		return [bodyStatus, {
+		//The statement was parsed with issues
+		return [status, {
 			type: 'switch_default',
-			complete: true,
-			body: body as AST_CMD[]
+			complete: false,
+			body: body
 		}];
 	} else if (caseTkn.value === TKN_CASE) {
 		//Read the case's expression
@@ -519,14 +553,13 @@ function _readCase(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			status = ParseStatus.ERROR;
 		}
 
-		//Expect a colon after the case definition
-		state.expect(TKN_COLON);
-		//Parse the case body
-		let [bodyStatus, body]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readStatementList(state, opts);
+		//Read the body of the case statement
+		let [caseStatus, body] = _readCaseBody(state);
+		if (caseStatus !== ParseStatus.OK) status = caseStatus;
 
-		if (bodyStatus === ParseStatus.OK && status === ParseStatus.OK) {
+		if (status === ParseStatus.OK) {
 			//The statement was all parsed correctly
-			return [bodyStatus, {
+			return [status, {
 				type: 'switch_case',
 				complete: true,
 				cond: expr as AST_EXPR,
@@ -534,7 +567,7 @@ function _readCase(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			}];
 		}
 		//The statement was parsed with issues
-		return [bodyStatus, {
+		return [status, {
 			type: 'switch_case',
 			complete: false,
 			cond: expr,
@@ -562,7 +595,7 @@ function _readSwitch(state: StateManager, opts: IntParserOpts): [ParseStatus, AS
 	let inpExpr: AST_EXPR|AST_EXPR_PARTIAL|null = _readExpr(state, opts);
 
 	//Build up the switch cases and default value
-	let cases: (AST_SWITCH_CASE|AST_SWITCH_CASE_PARTIAL)[] = [];
+	let cases: (AST_SWITCH_CASE|AST_SWITCH_CASE_PARTIAL|null)[] = [];
 	let dflt: AST_SWITCH_DEFAULT|AST_SWITCH_DEFAULT_PARTIAL|null = null;
 
 	//Expect a "{" to open the switch
@@ -576,7 +609,11 @@ function _readSwitch(state: StateManager, opts: IntParserOpts): [ParseStatus, AS
 
 		//The default case should be the last in the switch
 		if (dflt !== null) {
-			state.unexpectedToken(state.peek()?.value, TKN_BLOCK_CLS);
+			status = ParseStatus.ERROR;
+			state.errorManager.addError(
+				next.pos,
+				`The 'default' case should be the last case in the block`
+			)
 		}
 
 		//Read the next case statement and body from the token list
@@ -584,11 +621,13 @@ function _readSwitch(state: StateManager, opts: IntParserOpts): [ParseStatus, AS
 		let body: AST_SWITCH_CASE|AST_SWITCH_CASE_PARTIAL|AST_SWITCH_DEFAULT|AST_SWITCH_DEFAULT_PARTIAL|null;
 		[caseStatus, body] = _readCase(state, opts);
 		//Update the status if the case wasn't parsed completely
-		if (status !== ParseStatus.OK) status = caseStatus;
+		if (caseStatus !== ParseStatus.OK) status = caseStatus;
 
-		if (status === ParseStatus.EOI || body === null) {
+		if (status === ParseStatus.EOI) {
 			//Unexpected end of input
 			break;
+		} else if (body === null) {
+			cases.push(body);
 		} else if (body.type === 'switch_case') {
 			//A case statement
 			cases.push(body);
@@ -599,11 +638,13 @@ function _readSwitch(state: StateManager, opts: IntParserOpts): [ParseStatus, AS
 	}
 
 	//Create an empty default case if one wasn't provided
-	dflt = dflt || {
-		type: 'switch_default',
-		complete: true,
-		body: []
-	};
+	if (dflt === null) {
+		dflt = {
+			type: 'switch_default',
+			complete: true,
+			body: []
+		};
+	}
 
 	//Expect a closing block symbol
 	let [s,] = state.expect(TKN_BLOCK_CLS);

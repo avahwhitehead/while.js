@@ -966,9 +966,6 @@ describe('Parser', function () {
 	});
 });
 
-//TODO: make sure switches don't accept empty cases
-
-//TODO: Test error when 'default' is not the final case
 
 describe('Parser Error Checker', function () {
 	describe('error in base structure', function () {
@@ -1321,8 +1318,6 @@ describe('Parser Error Checker', function () {
 		});
 	});
 
-	//TODO: Test same errors as above with populated code blocks
-
 	describe('while statement', function () {
 		it(`should be accepted`, function () {
 			let expected: AST_PROG = {
@@ -1481,6 +1476,176 @@ describe('Parser Error Checker', function () {
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
+			]);
+		});
+	});
+
+	describe('switch statement', function () {
+		it(`should not accept empty cases`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 6, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: false,
+								cond: idnt('nil', 2, 9),
+								body: [],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 4, 6),
+									arg: idnt('nil', 4, 11),
+								}
+							],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'    default:\n' +
+				'      Y := nil\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`Switch cases may not have empty bodies`, 2, 12)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
+			]);
+		});
+
+		it(`should not accept empty default`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 6, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: idnt('nil', 2, 9),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 3, 6),
+										arg: idnt('nil', 3, 11),
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: false,
+							body: [],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y := nil\n' +
+				'    default:\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`Switch cases may not have empty bodies`, 4, 11)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
+			]);
+		});
+
+		it(`should not accept non-terminal default`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 7, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: idnt('nil', 4, 9),
+								body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 5, 6),
+									arg: idnt('nil', 5, 11),
+								}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 3, 6),
+									arg: idnt('nil', 3, 11),
+								}
+
+							],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    default:\n' +
+				'      Y := nil\n' +
+				'    case nil:\n' +
+				'      Y := nil\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`The 'default' case should be the last case in the block`, 4, 4)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
 			]);
 		});
 	});
