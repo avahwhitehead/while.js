@@ -738,7 +738,12 @@ describe('Parser', function () {
 						type: 'assign',
 						complete: false,
 						ident: idnt('Y', 1, 2),
-						arg: null
+						arg: {
+							type: 'operation',
+							complete: false,
+							op: null,
+							args: []
+						}
 					}
 				]
 			};
