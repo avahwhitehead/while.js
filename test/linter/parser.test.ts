@@ -762,6 +762,195 @@ describe('Parser', function () {
 		});
 	});
 
+	describe('lists', function () {
+		it(`should accept empty lists`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: []
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := []\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with 1 element`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								idnt('X', 1, 8)
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [X]\n' +
+				'} write Y'
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with multiple elements`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								idnt('X', 1, 8),
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('hd', 1, 11),
+									args: [idnt('X', 1, 14)]
+								},
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('tl', 1, 17),
+									args: [idnt('X', 1, 20)]
+								}
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [X, hd X, tl X]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with complex elements`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								{
+									type: 'list',
+									complete: true,
+									elements: [
+										{
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 1, 9),
+											args: [
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 1, 14),
+													args: [
+														idnt('nil', 1, 19),
+														idnt('nil', 1, 23)
+													]
+												},
+												idnt('nil', 1, 27)
+											]
+										},
+										{
+											type: 'operation',
+											complete: true,
+											op: opr('hd', 1, 32),
+											args: [
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('hd', 1, 35),
+													args: [idnt('X', 1, 38)]
+												},
+											]
+										},
+									]
+								},
+								idnt('X', 1, 42),
+								{
+									type: 'list',
+									complete: true,
+									elements: [
+										idnt('X', 1, 46),
+										idnt('X', 1, 49),
+									]
+								},
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [[cons cons nil nil nil, hd hd X], X, [X, X]]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
 	describe('nested operations', function () {
 		it(`should correctly parse nested cons`, function () {
 			let expected: AST_PROG = {

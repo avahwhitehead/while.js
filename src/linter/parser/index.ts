@@ -29,7 +29,14 @@ import {
 } from "../../types/ast";
 import Position, { incrementPos } from "../../types/position";
 import { ErrorManager as BaseErrorManager, ErrorType } from "../../utils/errorManager";
-import { TKN_CASE, TKN_COLON, TKN_DEFAULT, TKN_SWITCH, WHILE_TOKEN_EXTD } from "../../types/extendedTokens";
+import {
+	TKN_CASE,
+	TKN_COLON, TKN_COMMA,
+	TKN_DEFAULT, TKN_LIST_CLS,
+	TKN_LIST_OPN,
+	TKN_SWITCH,
+	WHILE_TOKEN_EXTD
+} from "../../types/extendedTokens";
 import { BinaryTree } from "../../types/Trees";
 
 export interface ParserOpts {
@@ -387,7 +394,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (leftStatus !== ParseStatus.OK) status = leftStatus;
 		if (rightStatus !== ParseStatus.OK) status = rightStatus;
 
-		if (!left || !right || ((left.type === 'operation' || left.type === 'equal') && !left.complete) || ((right.type === 'operation' || right.type === 'equal') && !right.complete)) {
+		if (!left || !right || ((left.type === 'operation' || left.type === 'equal' || left.type === 'list') && !left.complete) || ((right.type === 'operation' || right.type === 'equal' || right.type === 'list') && !right.complete)) {
 			return [status, {
 				type: 'operation',
 				complete: false,
@@ -417,6 +424,20 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 					type: 'tree',
 					tree: _numToTree(first.value)
 				}];
+			} else if (first.value === TKN_LIST_OPN) {
+				let [lstStatus, lstBody]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)[]] = _readListBody(state, opts);
+				if (lstStatus === ParseStatus.OK) {
+					return [lstStatus, {
+						type: 'list',
+						complete: true,
+						elements: lstBody as AST_EXPR[],
+					}];
+				}
+				return [lstStatus, {
+					type: 'list',
+					complete: false,
+					elements: lstBody,
+				}];
 			}
 		}
 		state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
@@ -427,6 +448,71 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			args: []
 		}];
 	}
+}
+
+/**
+ * Read the content of a list statement from the program token list.
+ * Assumes that the {@code TKN_LIST_OPN} token HAS been read from the token list.
+ * Returns a list containing each element of the list, in order
+ * @param state		The parser state manager object
+ * @param opts		Configuration options object
+ * @returns {[ParseStatus.OK, AST_SWITCH]}			The parsed element list
+ * @returns {[ParseStatus.ERROR, (AST_EXPR|AST_EXPR_PARTIAL|null)[]]}	The parsed statement with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ * @returns {[ParseStatus.EOI, (AST_EXPR|AST_EXPR_PARTIAL|null)[]]}	The parsed statement with {@code null} where information can't be parsed, or {@code null} if it is unreadable
+ */
+function _readListBody(state: StateManager, opts: IntParserOpts): [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)[]] {
+	//Exit here if the list ends immediately
+	let next: WHILE_TOKEN_EXTD|null = state.peek();
+	if (next === null) {
+		//Move the pointer to after the last token
+		state.next();
+		state.unexpectedEOI(TKN_LIST_CLS);
+		return [ParseStatus.EOI, []];
+	} else if (next.value === TKN_LIST_CLS) {
+		//Consume the separator
+		state.next();
+		return [ParseStatus.OK, []];
+	}
+
+	let res: (AST_EXPR|AST_EXPR_PARTIAL|null)[] = [];
+	let status: ParseStatus = ParseStatus.OK;
+	while (true) {
+		const [statementStatus, statement]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+		res.push(statement);
+
+		if (statementStatus === ParseStatus.EOI) {
+			//On end of input
+			status = statementStatus;
+			break;
+		} else if (statementStatus === ParseStatus.ERROR) {
+			//On parsing error, consume the input until a separator token is reached
+			//Then start afresh
+			state.consumeUntil(TKN_LIST_CLS, TKN_COMMA);
+			status = ParseStatus.ERROR;
+		}
+
+		//Check that the next token is a comma or closing bracket
+		let next: WHILE_TOKEN_EXTD|null = state.peek();
+		if (next === null) {
+			status = ParseStatus.EOI;
+			//Move the pointer to after the last token
+			state.next();
+			state.unexpectedEOI(TKN_COMMA, TKN_LIST_CLS);
+			break;
+		} else if (next.value === TKN_COMMA) {
+			//Consume the separator to start clean next loop
+			state.next();
+			//Move on to the next statement
+			continue;
+		} else if (next.value === TKN_LIST_CLS) {
+			state.next();
+			break;
+		}
+		//Unknown token - consume the input until the next known position
+		state.consumeUntil(TKN_COMMA, TKN_LIST_CLS);
+	}
+
+	return [status, res];
 }
 
 /**

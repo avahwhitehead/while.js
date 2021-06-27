@@ -38,6 +38,17 @@ export type AST_TREE = {
 	tree: BinaryTree,
 }
 
+export type AST_LIST = {
+	type: 'list',
+	complete: true,
+	elements: AST_EXPR[],
+}
+export type AST_LIST_PARTIAL = {
+	type: 'list',
+	complete: false,
+	elements: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
+}
+
 //cons/hd/tl operations
 export type AST_OP = {
 	type: 'operation',
@@ -51,8 +62,8 @@ export type AST_OP_PARTIAL = {
 	op: OP_TYPE_EXTD|null,
 	args: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
-export type AST_EXPR = AST_OP | AST_OP_EQL | AST_TREE | IDENT_TYPE;
-export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_TREE | IDENT_TYPE;
+export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_TREE | IDENT_TYPE;
+export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_TREE | IDENT_TYPE;
 
 //Assignment/If/While operations
 export type AST_IF = {
