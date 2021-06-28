@@ -25,15 +25,25 @@ import {
 	AST_PROG,
 	AST_PROG_PARTIAL,
 	AST_SWITCH_CASE,
-	AST_SWITCH_DEFAULT, AST_SWITCH, AST_SWITCH_PARTIAL
+	AST_SWITCH_DEFAULT,
+	AST_SWITCH,
+	AST_SWITCH_PARTIAL,
+	AST_TREE,
+	AST_TREE_PARTIAL,
+	AST_EXPR_TREE,
+	AST_EXPR_TREE_PARTIAL
 } from "../../types/ast";
 import Position, { incrementPos } from "../../types/position";
 import { ErrorManager as BaseErrorManager, ErrorType } from "../../utils/errorManager";
 import {
 	TKN_CASE,
 	TKN_COLON, TKN_COMMA,
-	TKN_DEFAULT, TKN_LIST_CLS,
+	TKN_DEFAULT,
+	TKN_DOT,
+	TKN_LIST_CLS,
 	TKN_LIST_OPN,
+	TKN_MCRO_CLS,
+	TKN_MCRO_OPN,
 	TKN_SWITCH,
 	WHILE_TOKEN_EXTD
 } from "../../types/extendedTokens";
@@ -394,7 +404,10 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (leftStatus !== ParseStatus.OK) status = leftStatus;
 		if (rightStatus !== ParseStatus.OK) status = rightStatus;
 
-		if (!left || !right || ((left.type === 'operation' || left.type === 'equal' || left.type === 'list') && !left.complete) || ((right.type === 'operation' || right.type === 'equal' || right.type === 'list') && !right.complete)) {
+		if (!left || !right
+			|| ((left.type === 'operation' || left.type === 'equal' || left.type === 'list' || left.type === 'tree_expr') && !left.complete)
+			|| ((right.type === 'operation' || right.type === 'equal' || right.type === 'list' || right.type === 'tree_expr') && !right.complete)
+		) {
 			return [status, {
 				type: 'operation',
 				complete: false,
@@ -422,6 +435,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			if (first.type === 'number') {
 				return [ParseStatus.OK, {
 					type: 'tree',
+					complete: true,
 					tree: _numToTree(first.value)
 				}];
 			} else if (first.value === TKN_LIST_OPN) {
@@ -438,6 +452,9 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 					complete: false,
 					elements: lstBody,
 				}];
+			} else if (first.value === TKN_MCRO_OPN) {
+				let [treeStatus, treeBody]: [ParseStatus, AST_EXPR_TREE|AST_EXPR_TREE_PARTIAL] = _readTreeBody(state, opts);
+				return [treeStatus, treeBody];
 			}
 		}
 		state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
@@ -513,6 +530,76 @@ function _readListBody(state: StateManager, opts: IntParserOpts): [ParseStatus, 
 	}
 
 	return [status, res];
+}
+
+/**
+ * Read a tree statement from the program token list.
+ * Assumes that the {@code TKN_TREE_OPN} token HAS been read from the token list.
+ * Returns a list containing the parser segment status, and the parsed command tree
+ * @param state		The parser state manager object
+ * @param opts		Configuration options object
+ * @returns {[ParseStatus.OK, AST_EXPR_TREE]}			The parsed switch statement
+ * @returns {[ParseStatus.ERROR, AST_EXPR_TREE_PARTIAL]}	The parsed statement with {@code null} where information can't be parsed
+ * @returns {[ParseStatus.EOI, AST_EXPR_TREE_PARTIAL]}	The parsed statement with {@code null} where information can't be parsed
+ */
+function _readTreeBody(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR_TREE|AST_EXPR_TREE_PARTIAL] {
+	let status: ParseStatus = ParseStatus.OK;
+
+	//Read the left-hand node
+	const [leftStatus, left]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+	if (leftStatus === ParseStatus.EOI) {
+		return [ParseStatus.EOI, {
+			type: 'tree_expr',
+			complete: false,
+			left: left,
+			right: null,
+		}];
+	}
+	if (leftStatus !== ParseStatus.OK) status = leftStatus;
+
+	//Check that the next token is a dot separating the elements
+	let [dotStatus,]: [ParseStatus, unknown] = state.expect(TKN_DOT);
+	if (dotStatus === ParseStatus.EOI) {
+		return [ParseStatus.EOI, {
+			type: 'tree_expr',
+			complete: false,
+			left: left,
+			right: null,
+		}];
+	}
+	if (dotStatus !== ParseStatus.OK) status = dotStatus;
+
+	//Read the right-hand node
+	const [rightStatus, right]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+	if (rightStatus === ParseStatus.EOI) {
+		return [ParseStatus.EOI, {
+			type: 'tree_expr',
+			complete: false,
+			left: left,
+			right: right,
+		}];
+	}
+	if (rightStatus !== ParseStatus.OK) status = rightStatus;
+
+	//Read the closing tree bracket
+	let [clsStatus,]: [ParseStatus, unknown] = state.expect(TKN_MCRO_CLS);
+	if (clsStatus !== ParseStatus.OK) status = clsStatus;
+
+	//Return the tree
+	if (status === ParseStatus.OK) {
+		return [status, {
+			type: 'tree_expr',
+			complete: true,
+			left: left as AST_EXPR,
+			right: right as AST_EXPR,
+		}];
+	}
+	return [status, {
+		type: 'tree_expr',
+		complete: false,
+		left: left,
+		right: right,
+	}];
 }
 
 /**

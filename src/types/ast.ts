@@ -35,8 +35,27 @@ export type AST_OP_EQL_PARTIAL = {
 
 export type AST_TREE = {
 	type: 'tree',
+	complete: true,
 	tree: BinaryTree,
 }
+export type AST_TREE_PARTIAL = {
+	type: 'tree',
+	complete: false,
+	tree: BinaryTree,
+};
+
+export type AST_EXPR_TREE = {
+	type: 'tree_expr',
+	complete: true,
+	left: AST_EXPR,
+	right: AST_EXPR,
+};
+export type AST_EXPR_TREE_PARTIAL = {
+	type: 'tree_expr',
+	complete: false,
+	left: AST_EXPR|AST_EXPR_PARTIAL|null,
+	right: AST_EXPR|AST_EXPR_PARTIAL|null,
+};
 
 export type AST_LIST = {
 	type: 'list',
@@ -62,8 +81,8 @@ export type AST_OP_PARTIAL = {
 	op: OP_TYPE_EXTD|null,
 	args: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
-export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_TREE | IDENT_TYPE;
-export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_TREE | IDENT_TYPE;
+export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_EXPR_TREE | AST_TREE | IDENT_TYPE;
+export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_EXPR_TREE_PARTIAL | IDENT_TYPE;
 
 //Assignment/If/While operations
 export type AST_IF = {

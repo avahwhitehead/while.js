@@ -647,6 +647,7 @@ describe('Parser', function () {
 						ident: idnt('Y', 1, 2),
 						arg: {
 							type: 'tree',
+							complete: true,
 							tree: tn(0)
 						}
 					}
@@ -678,6 +679,7 @@ describe('Parser', function () {
 						ident: idnt('Y', 1, 2),
 						arg: {
 							type: 'tree',
+							complete: true,
 							tree: tn(7)
 						}
 					}
@@ -709,6 +711,7 @@ describe('Parser', function () {
 						ident: idnt('Y', 1, 2),
 						arg: {
 							type: 'tree',
+							complete: true,
 							tree: tn(12)
 						}
 					}
@@ -942,6 +945,250 @@ describe('Parser', function () {
 			let [tokens,] = lexer(
 				'prog read X {\n' +
 				'  Y := [[cons cons nil nil nil, hd hd X], X, [X, X]]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('trees', function () {
+		it(`should accept <nil.nil>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: idnt('nil', 1, 8),
+						right: idnt('nil', 1, 12),
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <nil.nil>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <<nil.nil>.<nil.nil>>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: {
+							type: 'tree_expr',
+							complete: true,
+							left: idnt('nil', 1, 9),
+							right: idnt('nil', 1, 13),
+						},
+						right: {
+							type: 'tree_expr',
+							complete: true,
+							left: idnt('nil', 1, 19),
+							right: idnt('nil', 1, 23),
+						},
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <<nil.nil>.<nil.nil>>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <4.5>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: {
+							type: 'tree',
+							complete: true,
+							tree: tn(4),
+						},
+						right: {
+							type: 'tree',
+							complete: true,
+							tree: tn(5),
+						},
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <4.5>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <[4,5].[]>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'tree_expr',
+							complete: true,
+							left: {
+								type: 'list',
+								complete: true,
+								elements: [
+									{
+										type: 'tree',
+										complete: true,
+										tree: tn(4),
+									},
+									{
+										type: 'tree',
+										complete: true,
+										tree: tn(5),
+									},
+								]
+							},
+							right: {
+								type: 'list',
+								complete: true,
+								elements: [],
+							},
+						}
+
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <[4,5].[]>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept [<tl X.hd X>, <cons nil nil.cons hd X tl X>]`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								// <tl X.hd X>
+								{
+									type: 'tree_expr',
+									complete: true,
+									left: {
+										type: 'operation',
+										complete: true,
+										op: opr('tl', 1, 9),
+										args: [idnt('X', 1, 12)],
+									},
+									right: {
+										type: 'operation',
+										complete: true,
+										op: opr('hd', 1, 14),
+										args: [idnt('X', 1, 17)],
+									},
+								},
+								//<cons nil nil.cons hd X tl X>
+								{
+									type: 'tree_expr',
+									complete: true,
+									left: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 1, 22),
+										args: [
+											idnt('nil', 1, 27),
+											idnt('nil', 1, 31)
+										],
+									},
+									right: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 1, 35),
+										args: [
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('hd', 1, 40),
+												args: [idnt('X', 1, 43)],
+											},
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('tl', 1, 45),
+												args: [idnt('X', 1, 48)],
+											},
+										],
+									},
+								}
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [<tl X.hd X>, <cons nil nil.cons hd X tl X>]\n' +
 				'} write Y',
 			);
 			expect(parser(tokens)).to.deep.equal([

@@ -2,14 +2,14 @@ import Position from "./position";
 import { EXPR_TOKEN, OP_TOKEN, SYMBOL_TOKEN, WHILE_TOKEN } from "./tokens";
 
 //Symbols
-export type SYMBOL_TOKEN_EXTD = SYMBOL_TOKEN | '=' | ',' | ':' | '[' | ']' | '<' | '>';
+export type SYMBOL_TOKEN_EXTD = SYMBOL_TOKEN | '=' | ',' | '.' | ':' | '[' | ']' | '<' | '>';
 export const TKN_EQL: SYMBOL_TOKEN_EXTD = '=';
 export const TKN_LIST_OPN: SYMBOL_TOKEN_EXTD = '[';
 export const TKN_LIST_CLS: SYMBOL_TOKEN_EXTD = ']';
 export const TKN_MCRO_OPN: SYMBOL_TOKEN_EXTD = '<';
 export const TKN_MCRO_CLS: SYMBOL_TOKEN_EXTD = '>';
 export const TKN_COMMA: SYMBOL_TOKEN_EXTD = ',';
-export const TKN_DOT: SYMBOL_TOKEN_EXTD = ',';
+export const TKN_DOT: SYMBOL_TOKEN_EXTD = '.';
 export const TKN_COLON: SYMBOL_TOKEN_EXTD = ':';
 
 //Expressions/Atoms
