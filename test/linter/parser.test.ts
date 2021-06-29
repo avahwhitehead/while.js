@@ -1198,6 +1198,125 @@ describe('Parser', function () {
 		});
 	});
 
+	describe('macros', function () {
+		it(`should accept '<prog> 7'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: {
+							type: 'tree',
+							complete: true,
+							tree: tn(7),
+						}
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> 7\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept '<prog> hd X'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: {
+							type: 'operation',
+							complete: true,
+							op: opr('hd', 1, 14),
+							args: [idnt('X', 1, 17)]
+						}
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> hd X\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept '<prog> cons hd X tl X'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: {
+							type: 'operation',
+							complete: true,
+							op: opr('cons', 1, 14),
+							args: [
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('hd', 1, 19),
+									args: [idnt('X', 1, 22)]
+								},
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('tl', 1, 24),
+									args: [idnt('X', 1, 27)]
+								}
+							]
+						}
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> cons hd X tl X\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
 	describe('nested operations', function () {
 		it(`should correctly parse nested cons`, function () {
 			let expected: AST_PROG = {

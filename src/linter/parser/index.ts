@@ -28,8 +28,8 @@ import {
 	AST_SWITCH_DEFAULT,
 	AST_SWITCH,
 	AST_SWITCH_PARTIAL,
-	AST_TREE,
-	AST_TREE_PARTIAL,
+	AST_MACRO,
+	AST_MACRO_PARTIAL,
 	AST_EXPR_TREE,
 	AST_EXPR_TREE_PARTIAL
 } from "../../types/ast";
@@ -167,12 +167,14 @@ class StateManager {
 
 	/**
 	 * Get the next token in the token list without removing from the queue.
+	 * @param pos	The position of the token to read from the list.
+	 * 				Default {@code 0} (the first element).
 	 * @return {WHILE_TOKEN_EXTD} 	The next token in the list
-	 * @return {null} 			If the list is empty.
+	 * @return {null} 				If the list is empty, or if the position is after the end of the list.
 	 */
-	public peek(): WHILE_TOKEN_EXTD|null {
-		if (this._tokens.length === 0) return null;
-		return this._tokens[0];
+	public peek(pos = 0): WHILE_TOKEN_EXTD|null {
+		if (pos < 0 || pos >= this._tokens.length) return null;
+		return this._tokens[pos];
 	}
 
 	/**
@@ -377,7 +379,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 					op: first,
 					args: [arg]
 				}];
-			} else if (arg.type === 'identifier' || arg.type === 'tree' || arg.complete) {
+			} else if (arg.type === 'identifier' || arg.complete) {
 				//The argument is an identifier or complete operation
 				return [exprState, {
 					type: 'operation',
@@ -405,8 +407,8 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (rightStatus !== ParseStatus.OK) status = rightStatus;
 
 		if (!left || !right
-			|| ((left.type === 'operation' || left.type === 'equal' || left.type === 'list' || left.type === 'tree_expr') && !left.complete)
-			|| ((right.type === 'operation' || right.type === 'equal' || right.type === 'list' || right.type === 'tree_expr') && !right.complete)
+			|| (left.type !== 'identifier' && !left.complete)
+			|| (right.type !== 'identifier' && !right.complete)
 		) {
 			return [status, {
 				type: 'operation',
@@ -453,8 +455,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 					elements: lstBody,
 				}];
 			} else if (first.value === TKN_MCRO_OPN) {
-				let [treeStatus, treeBody]: [ParseStatus, AST_EXPR_TREE|AST_EXPR_TREE_PARTIAL] = _readTreeBody(state, opts);
-				return [treeStatus, treeBody];
+				return _readTreeOrMacro(state, opts);
 			}
 		}
 		state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
@@ -600,6 +601,68 @@ function _readTreeBody(state: StateManager, opts: IntParserOpts): [ParseStatus, 
 		left: left,
 		right: right,
 	}];
+}
+
+/**
+ * Read either a tree statement or a macro call from the program token list.
+ * Assumes that the {@code TKN_TREE_OPN} token HAS been read from the token list.
+ * Returns a list containing the parser segment status, and the produced AST
+ * @param state		The parser state manager object
+ * @param opts		Configuration options object
+ * @returns {[ParseStatus.OK, AST_EXPR_TREE]}			The parsed switch statement
+ * @returns {[ParseStatus.ERROR, AST_EXPR_TREE_PARTIAL]}	The parsed statement with {@code null} where information can't be parsed
+ * @returns {[ParseStatus.EOI, AST_EXPR_TREE_PARTIAL]}	The parsed statement with {@code null} where information can't be parsed
+ */
+function _readTreeOrMacro(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL]{
+	//If the token list starts with `identifier>` then assume it is a macro call
+	if (state.peek()?.type === 'identifier' && state.peek(1)?.value === TKN_MCRO_CLS) {
+		let status: ParseStatus = ParseStatus.OK;
+
+		//The program name
+		let progName: string = (state.next() as IDENT_TYPE).value;
+
+		//Check that the next token is a dot separating the elements
+		let [clsStatus,]: [ParseStatus, unknown] = state.expect(TKN_MCRO_CLS);
+		if (clsStatus === ParseStatus.EOI) {
+			return [ParseStatus.EOI, {
+				type: 'macro',
+				complete: false,
+				input: null,
+				program: progName,
+			}];
+		}
+		if (clsStatus !== ParseStatus.OK) status = clsStatus;
+
+		//Read the input expression
+		const [inpStatus, inp]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+		if (inpStatus === ParseStatus.EOI) {
+			return [ParseStatus.EOI, {
+				type: 'macro',
+				complete: false,
+				program: progName,
+				input: inp,
+			}];
+		}
+		if (inpStatus !== ParseStatus.OK) status = inpStatus;
+
+		//Return the macro call node
+		if (status === ParseStatus.OK) {
+			return [status, {
+				type: 'macro',
+				complete: true,
+				program: progName,
+				input: inp as AST_MACRO,
+			}];
+		}
+		return [status, {
+			type: 'macro',
+			complete: false,
+			program: progName,
+			input: inp as AST_MACRO|AST_MACRO_PARTIAL,
+		}];
+	}
+	//Otherwise assume the token list is representing a tree
+	return _readTreeBody(state, opts);
 }
 
 /**
@@ -981,7 +1044,7 @@ function _readStmt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (valStatus === ParseStatus.EOI) return [ParseStatus.EOI, null];
 		if (valStatus !== ParseStatus.OK) status = valStatus;
 
-		if (isVarValid && status === ParseStatus.OK && val !== null && (val.type === 'identifier' || val.type === 'tree' || val.complete)) {
+		if (isVarValid && status === ParseStatus.OK && val !== null && (val.type === 'identifier' || val.complete)) {
 			return [
 				ParseStatus.OK,
 				{

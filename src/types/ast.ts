@@ -68,6 +68,19 @@ export type AST_LIST_PARTIAL = {
 	elements: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
 
+export type AST_MACRO = {
+	type: 'macro',
+	complete: true,
+	program: string,
+	input: AST_EXPR,
+};
+export type AST_MACRO_PARTIAL = {
+	type: 'macro',
+	complete: false,
+	program: string|null,
+	input: AST_EXPR|AST_EXPR_PARTIAL|null,
+};
+
 //cons/hd/tl operations
 export type AST_OP = {
 	type: 'operation',
@@ -81,8 +94,8 @@ export type AST_OP_PARTIAL = {
 	op: OP_TYPE_EXTD|null,
 	args: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
-export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_EXPR_TREE | AST_TREE | IDENT_TYPE;
-export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_EXPR_TREE_PARTIAL | IDENT_TYPE;
+export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_EXPR_TREE | AST_TREE | AST_MACRO | IDENT_TYPE;
+export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_EXPR_TREE_PARTIAL | AST_TREE_PARTIAL | AST_MACRO_PARTIAL | IDENT_TYPE;
 
 //Assignment/If/While operations
 export type AST_IF = {
