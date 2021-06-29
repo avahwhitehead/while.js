@@ -12,6 +12,7 @@ import {
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
 import { error, idnt, opr, tn } from "../utils";
 import { ErrorType } from "../../src";
+import { WHILE_TOKEN_EXTD } from "../../src/types/extendedTokens";
 
 chai.config.truncateThreshold = 0;
 
@@ -283,6 +284,57 @@ describe('Parser', function () {
 				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X',
 			{pureOnly: true}
 			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept an equals condition`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 4, 8),
+				body: [
+					{
+						type: 'cond',
+						complete: true,
+						condition: {
+							type: 'equal',
+							complete: true,
+							arg1: idnt('X', 1, 5),
+							arg2: {
+								type: 'tree',
+								complete: true,
+								tree: tn(5)
+							},
+						},
+						if: [
+							{
+								type: 'assign',
+								complete: true,
+								ident: idnt('X', 2, 4),
+								arg: {
+									type: 'operation',
+									complete: true,
+									op: opr(TKN_TL, 2, 9),
+									args: [idnt('X', 2, 12)]
+								}
+							}
+						],
+						else: []
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  if X=5 {\n' +
+				'    X := tl X\n' +
+				'  }\n' +
+				'} write X',
+			) as [WHILE_TOKEN_EXTD[],unknown];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]

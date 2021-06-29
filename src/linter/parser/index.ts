@@ -40,6 +40,7 @@ import {
 	TKN_COLON, TKN_COMMA,
 	TKN_DEFAULT,
 	TKN_DOT,
+	TKN_EQL,
 	TKN_LIST_CLS,
 	TKN_LIST_OPN,
 	TKN_MCRO_CLS,
@@ -341,131 +342,161 @@ function _isValidVariableName(name: string, opts: IntParserOpts): boolean {
  * @returns {[ParseStatus.EOI, AST_EXPR|AST_EXPR_PARTIAL|null]}		The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
  */
 function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
-	let first = state.next();
-	//Handle early end of input
-	if (first === null) return [ParseStatus.EOI, null];
+	function _readExprInt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
+		let first = state.next();
+		//Handle early end of input
+		if (first === null) return [ParseStatus.EOI, null];
 
-	//Support brackets around expressions
-	if (first.value === TKN_PREN_OPN) {
-		let status: ParseStatus = ParseStatus.OK;
-		//Parse the expression between the brackets
-		const [exprStatus, expr]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
-		if (exprStatus !== ParseStatus.OK) status = exprStatus;
+		let res: AST_EXPR|AST_EXPR_PARTIAL|null;
 
-		//Expect a closing parenthesis
-		let close = state.next();
-		if (close === null) {
-			state.unexpectedEOI(TKN_PREN_CLS);
-			status = ParseStatus.OK;
-		} else if (close.value === TKN_PREN_CLS) {
-			//Brackets match
-		} else {
-			state.unexpectedToken(close.value, TKN_PREN_CLS);
-			status = ParseStatus.ERROR;
-		}
+		//Support brackets around expressions
+		if (first.value === TKN_PREN_OPN) {
+			let status: ParseStatus = ParseStatus.OK;
+			//Parse the expression between the brackets
+			const [exprStatus, expr]: [ParseStatus, AST_EXPR | AST_EXPR_PARTIAL | null] = _readExpr(state, opts);
+			if (exprStatus !== ParseStatus.OK) status = exprStatus;
 
-		//Return the result of the expression
-		return [status, expr];
-	}
-
-	if (first.type === 'operation') {
-		//Parse `hd` and `tl`
-		if (first.value === TKN_HD || first.value === TKN_TL) {
-			const [exprState, arg]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
-			if (arg === null) {
-				return [exprState, {
-					type: 'operation',
-					complete: false,
-					op: first,
-					args: [arg]
-				}];
-			} else if (arg.type === 'identifier' || arg.complete) {
-				//The argument is an identifier or complete operation
-				return [exprState, {
-					type: 'operation',
-					complete: true,
-					op: first,
-					args: [arg]
-				}];
+			//Expect a closing parenthesis
+			let close = state.next();
+			if (close === null) {
+				state.unexpectedEOI(TKN_PREN_CLS);
+				status = ParseStatus.OK;
+			} else if (close.value === TKN_PREN_CLS) {
+				//Brackets match
 			} else {
-				//The argument is an incomplete operation
-				return [exprState, {
-					type: 'operation',
-					complete: false,
-					op: first,
-					args: [arg]
-				}];
+				state.unexpectedToken(close.value, TKN_PREN_CLS);
+				status = ParseStatus.ERROR;
 			}
+
+			//Return the result of the expression
+			return [status, expr];
 		}
 
-		//Parse `cons`
-		const [leftStatus, left]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
-		const [rightStatus, right]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
-
-		let status: ParseStatus = ParseStatus.OK;
-		if (leftStatus !== ParseStatus.OK) status = leftStatus;
-		if (rightStatus !== ParseStatus.OK) status = rightStatus;
-
-		if (!left || !right
-			|| (left.type !== 'identifier' && !left.complete)
-			|| (right.type !== 'identifier' && !right.complete)
-		) {
-			return [status, {
-				type: 'operation',
-				complete: false,
-				op: first,
-				args: [
-					left,
-					right
-				]
-			}];
-		} else {
-			return [status, {
-				type: 'operation',
-				complete: true,
-				op: first,
-				args: [
-					left,
-					right
-				]
-			}];
-		}
-	} else if (first.type === 'identifier') {
-		return [ParseStatus.OK, first];
-	} else {
-		if (!opts.pureOnly) {
-			if (first.type === 'number') {
-				return [ParseStatus.OK, {
-					type: 'tree',
-					complete: true,
-					tree: _numToTree(first.value)
-				}];
-			} else if (first.value === TKN_LIST_OPN) {
-				let [lstStatus, lstBody]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)[]] = _readListBody(state, opts);
-				if (lstStatus === ParseStatus.OK) {
-					return [lstStatus, {
-						type: 'list',
+		if (first.type === 'operation') {
+			//Parse `hd` and `tl`
+			if (first.value === TKN_HD || first.value === TKN_TL) {
+				const [exprState, arg]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+				if (arg === null) {
+					return [exprState, {
+						type: 'operation',
+						complete: false,
+						op: first,
+						args: [arg]
+					}];
+				} else if (arg.type === 'identifier' || arg.complete) {
+					//The argument is an identifier or complete operation
+					return [exprState, {
+						type: 'operation',
 						complete: true,
-						elements: lstBody as AST_EXPR[],
+						op: first,
+						args: [arg]
+					}];
+				} else {
+					//The argument is an incomplete operation
+					return [exprState, {
+						type: 'operation',
+						complete: false,
+						op: first,
+						args: [arg]
 					}];
 				}
-				return [lstStatus, {
-					type: 'list',
-					complete: false,
-					elements: lstBody,
-				}];
-			} else if (first.value === TKN_MCRO_OPN) {
-				return _readTreeOrMacro(state, opts);
 			}
+
+			//Parse `cons`
+			const [leftStatus, left]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+			const [rightStatus, right]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+
+			let status: ParseStatus = ParseStatus.OK;
+			if (leftStatus !== ParseStatus.OK) status = leftStatus;
+			if (rightStatus !== ParseStatus.OK) status = rightStatus;
+
+			if (!left || !right
+				|| (left.type !== 'identifier' && !left.complete)
+				|| (right.type !== 'identifier' && !right.complete)
+			) {
+				return [status, {
+					type: 'operation',
+					complete: false,
+					op: first,
+					args: [
+						left,
+						right
+					]
+				}];
+			} else {
+				return [status, {
+					type: 'operation',
+					complete: true,
+					op: first,
+					args: [
+						left,
+						right
+					]
+				}];
+			}
+		} else if (first.type === 'identifier') {
+			return [ParseStatus.OK, first];
+		} else {
+			if (!opts.pureOnly) {
+				if (first.type === 'number') {
+					return [ParseStatus.OK, {
+						type: 'tree',
+						complete: true,
+						tree: _numToTree(first.value)
+					}];
+				} else if (first.value === TKN_LIST_OPN) {
+					let [lstStatus, lstBody]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)[]] = _readListBody(state, opts);
+					if (lstStatus === ParseStatus.OK) {
+						return [lstStatus, {
+							type: 'list',
+							complete: true,
+							elements: lstBody as AST_EXPR[],
+						}];
+					}
+					return [lstStatus, {
+						type: 'list',
+						complete: false,
+						elements: lstBody,
+					}];
+				} else if (first.value === TKN_MCRO_OPN) {
+					return _readTreeOrMacro(state, opts);
+				}
+			}
+			state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
+			return [ParseStatus.ERROR, {
+				type: 'operation',
+				complete: false,
+				op: null,
+				args: []
+			}];
 		}
-		state.unexpectedTokenCustom(first.value, 'Expected an expression or an identifier');
-		return [ParseStatus.ERROR, {
-			type: 'operation',
+	}
+
+	let [resStat, res]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExprInt(state, opts);
+
+	//Check if this expression is an equality check
+	if (!opts.pureOnly && state.peek()?.value === TKN_EQL) {
+		state.next();
+
+		let [nextStatus, next]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)] = _readExpr(state, opts);
+
+		if (nextStatus === ParseStatus.OK) {
+			return [ParseStatus.OK, {
+				type: 'equal',
+				complete: true,
+				arg1: res as AST_EXPR,
+				arg2: next as AST_EXPR,
+			}];
+		}
+		return [nextStatus, {
+			type: 'equal',
 			complete: false,
-			op: null,
-			args: []
+			arg1: res,
+			arg2: next,
 		}];
 	}
+
+	return [resStat, res];
 }
 
 /**
