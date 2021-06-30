@@ -1177,6 +1177,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		} else {
 			state.next();
 			//Not an identifier
+			state.unexpectedValue('type', input.type, 'identifier');
 			return [ParseStatus.ERROR, null];
 		}
 	}
@@ -1231,7 +1232,10 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		state.next();
 		let [inputStatus, inputVar]: [ParseStatus, IDENT_TYPE|null] = _readRead(state, opts);
 		//A program name wasn't provided
-		if (name.type !== 'identifier') return [ParseStatus.ERROR, null, inputVar];
+		if (name.type !== 'identifier') {
+			state.unexpectedValue('type', name.type, 'identifier');
+			return [ParseStatus.ERROR, null, inputVar];
+		}
 		if (inputStatus === ParseStatus.OK) {
 			//Acceptable token
 			return [ParseStatus.OK, name as IDENT_TYPE, inputVar];
