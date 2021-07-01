@@ -349,11 +349,14 @@ function _isValidVariableName(name: string, opts: IntParserOpts): boolean {
  * Returns a list containing the parser segment status, and the parsed expression tree.
  * @param state		The parser state manager object
  * @param opts		Configuration options object
+ * @param checkEq	Whether to check for an equality operator after the expression.
+ * 					Default {@code true}.
+ * 					Mainly for recursive calls.
  * @returns {[ParseStatus.OK, AST_EXPR]}			The parsed expression tree
  * @returns {[ParseStatus.ERROR, AST_EXPR|AST_EXPR_PARTIAL|null]}	The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
  * @returns {[ParseStatus.EOI, AST_EXPR|AST_EXPR_PARTIAL|null]}		The parsed expression with {@code null} where information can't be parsed, or {@code null} if it is unreadable
  */
-function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
+function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
 	function _readExprInt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
 		let first = state.next();
 		//Handle early end of input
@@ -363,7 +366,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (first.value === TKN_PREN_OPN) {
 			let status: ParseStatus = ParseStatus.OK;
 			//Parse the expression between the brackets
-			const [exprStatus, expr]: [ParseStatus, AST_EXPR | AST_EXPR_PARTIAL | null] = _readExpr(state, opts);
+			const [exprStatus, expr]: [ParseStatus, AST_EXPR | AST_EXPR_PARTIAL | null] = _readExpr(state, opts, false);
 			if (exprStatus !== ParseStatus.OK) status = exprStatus;
 
 			//Expect a closing parenthesis
@@ -405,7 +408,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 
 			//Parse `hd` and `tl`
 			if (first.value === TKN_HD || first.value === TKN_TL) {
-				const [exprState, arg]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+				const [exprState, arg]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts, false);
 				if (arg === null) {
 					return [exprState, {
 						type: 'operation',
@@ -433,8 +436,8 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			}
 
 			//Parse `cons`
-			const [leftStatus, left]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
-			const [rightStatus, right]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
+			const [leftStatus, left]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts, false);
+			const [rightStatus, right]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts, false);
 
 			let status: ParseStatus = ParseStatus.OK;
 			if (leftStatus !== ParseStatus.OK) status = leftStatus;
@@ -512,10 +515,10 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 	let [resStat, res]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExprInt(state, opts);
 
 	//Check if this expression is an equality check
-	if (!opts.pureOnly && state.peek()?.value === TKN_EQL) {
+	if (checkEq && !opts.pureOnly && state.peek()?.value === TKN_EQL) {
 		state.next();
 
-		let [nextStatus, next]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)] = _readExpr(state, opts);
+		let [nextStatus, next]: [ParseStatus, (AST_EXPR|AST_EXPR_PARTIAL|null)] = _readExpr(state, opts, checkEq);
 
 		if (nextStatus === ParseStatus.OK) {
 			return [ParseStatus.OK, {

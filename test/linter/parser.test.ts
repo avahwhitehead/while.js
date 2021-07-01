@@ -975,63 +975,81 @@ describe('Parser', function () {
 		});
 	});
 
-	describe('values', function () {
-		describe('pure', function () {
-			it(`should convert 'nil' to a tree`, function () {
-				let expected: AST_PROG = {
-					type: 'program',
-					complete: true,
-					name: idnt('prog', 0, 0),
-					input: idnt('X', 0, 10),
-					output: idnt('Y', 2, 8),
-					body: [
-						{
-							type: 'assign',
+	describe('equality binding', function () {
+		it(`should correctly parse X = X`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('eq', 0, 0),
+				input: idnt('X', 0, 8),
+				output: idnt('R', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('R', 1, 2),
+						arg: {
+							type: 'equal',
 							complete: true,
-							ident: idnt('Y', 1, 2),
-							arg: tree(tn(0))
-						}
-					]
-				};
-				let [tokens,] = lexer(
-					'prog read X {\n' +
-					'  Y := nil\n' +
-					'} write Y',
-					{pureOnly: false}
-				);
-				expect(parser(tokens)).to.deep.equal([
-					expected,
-					[]
-				]);
-			});
+							arg1: idnt('X', 1, 7),
+							arg2: idnt('X', 1, 11),
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'eq read X {\n' +
+				'  R := X = X\n' +
+				'} write R\n',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
 
-			it(`should convert 'true' to a tree`, function () {
-				let expected: AST_PROG = {
-					type: 'program',
-					complete: true,
-					name: idnt('prog', 0, 0),
-					input: idnt('X', 0, 10),
-					output: idnt('Y', 2, 8),
-					body: [
-						{
-							type: 'assign',
+		it(`should bind "hd X = tl X" correctly`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('eq', 0, 0),
+				input: idnt('X', 0, 8),
+				output: idnt('R', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('R', 1, 2),
+						arg: {
+							type: 'equal',
 							complete: true,
-							ident: idnt('Y', 1, 2),
-							arg: tree(tn(0))
-						}
-					]
-				};
-				let [tokens,] = lexer(
-					'prog read X {\n' +
-					'  Y := nil\n' +
-					'} write Y',
-					{pureOnly: false}
-				);
-				expect(parser(tokens)).to.deep.equal([
-					expected,
-					[]
-				]);
-			});
+							arg1: {
+								type: 'operation',
+								complete: true,
+								op: opr('hd', 1, 7),
+								args: [idnt('X', 1, 10)],
+							},
+							arg2: {
+								type: 'operation',
+								complete: true,
+								op: opr('tl', 1, 14),
+								args: [idnt('X', 1, 17)],
+							},
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'eq read X {\n' +
+				'  R := hd X = tl X\n' +
+				'} write R\n',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
 		});
 	});
 
