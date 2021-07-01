@@ -40,15 +40,16 @@ import {
 	TKN_COLON, TKN_COMMA,
 	TKN_DEFAULT,
 	TKN_DOT,
-	TKN_EQL,
+	TKN_EQL, TKN_FALSE,
 	TKN_LIST_CLS,
 	TKN_LIST_OPN,
 	TKN_MCRO_CLS,
 	TKN_MCRO_OPN,
-	TKN_SWITCH,
+	TKN_SWITCH, TKN_TRUE,
 	WHILE_TOKEN_EXTD
 } from "../../types/extendedTokens";
 import { BinaryTree } from "../../types/Trees";
+import { TKN_NIL } from "@whide/tree-lang/lib/trees/TreeLexer";
 
 export interface ParserOpts {
 	pureOnly?: boolean
@@ -290,6 +291,17 @@ class StateManager {
 	}
 }
 
+/*
+TODO: Add support for extended language:
+ [X] equality
+ [X] numbers
+ [X] booleans
+ [X] switch
+ [X] lists
+ [X] trees
+ [X] macro call
+*/
+
 /**
  * Convert a number to it's binary tree representation
  * @param n		The number to convert
@@ -318,11 +330,11 @@ function _numToTree(n: number): BinaryTree {
  */
 function _isValidVariableName(name: string, opts: IntParserOpts): boolean {
 	//Pure language constants
-	if (name === 'true') return false;
+	if (name === TKN_TRUE) return false;
 	//Extended language constants
 	if (!opts.pureOnly) {
-		return name !== 'false'
-			&& name !== 'true';
+		return name !== TKN_FALSE
+			&& name !== TKN_TRUE;
 	}
 	//Is valid
 	return true;
@@ -346,8 +358,6 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		let first = state.next();
 		//Handle early end of input
 		if (first === null) return [ParseStatus.EOI, null];
-
-		let res: AST_EXPR|AST_EXPR_PARTIAL|null;
 
 		//Support brackets around expressions
 		if (first.value === TKN_PREN_OPN) {
@@ -373,6 +383,26 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		}
 
 		if (first.type === 'operation') {
+			if (!opts.pureOnly) {
+				//Swap true/false values for their tree values
+				if (first.value === TKN_FALSE) {
+					//Convert to nil
+					return [ParseStatus.OK, {
+						type: 'tree',
+						complete: true,
+						tree: _numToTree(0)
+					}];
+				}
+				if (first.value === TKN_TRUE) {
+					//Convert to <nil.nil>
+					return [ParseStatus.OK, {
+						type: 'tree',
+						complete: true,
+						tree: _numToTree(1)
+					}];
+				}
+			}
+
 			//Parse `hd` and `tl`
 			if (first.value === TKN_HD || first.value === TKN_TL) {
 				const [exprState, arg]: [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] = _readExpr(state, opts);
@@ -435,6 +465,13 @@ function _readExpr(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 				}];
 			}
 		} else if (first.type === 'identifier') {
+			if (first.value === TKN_NIL) {
+				return [ParseStatus.OK, {
+					type:'tree',
+					complete:true,
+					tree:_numToTree(0)
+				}];
+			}
 			return [ParseStatus.OK, first];
 		} else {
 			if (!opts.pureOnly) {

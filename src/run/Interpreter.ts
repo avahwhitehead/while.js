@@ -250,14 +250,8 @@ export default class Interpreter {
 					this._replaceArgWithLiteral(val);
 				}
 			} else if (curr.type === "identifier") {
-				//If the expression is an identifier (nil/a variable in the program)...
-				if (curr.value === 'nil') {
-					//Hard code `nil` as a value
-					this._replaceArgWithLiteral(null);
-				} else {
-					//Otherwise look it up in the store, using nil as a fallback
-					this._replaceArgWithLiteral(this._store.get(curr.value) || null);
-				}
+				//Look up the variable in the store, using nil as a fallback
+				this._replaceArgWithLiteral(this._store.get(curr.value) || null);
 			} else {
 				//Unknown expression type
 				throw new Error(`Unknown expression token '${curr!.type}'`);

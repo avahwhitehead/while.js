@@ -10,13 +10,187 @@ import {
 	WHILE_TOKEN,
 } from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
-import { error, idnt, opr, tn } from "../utils";
+import { error, idnt, opr, tn, tree } from "../utils";
 import { ErrorType } from "../../src";
 import { WHILE_TOKEN_EXTD } from "../../src/types/extendedTokens";
 
 chai.config.truncateThreshold = 0;
 
 describe('Parser', function () {
+	describe('values', function () {
+		describe('pure', function () {
+			it(`should convert 'nil' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should keep 'false' as an identifier`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: idnt('false', 1, 7)
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := false\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should keep 'true' as an identifier`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: idnt('true', 1, 7)
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := true\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+		});
+
+		describe('extended', function () {
+			it(`should convert 'nil' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should convert 'false' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := false\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should convert 'true' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(1))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := true\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+		});
+	});
+
 	describe('identity program', function () {
 		it(`should be accepted`, function () {
 			const expected: AST_PROG = {
@@ -56,7 +230,7 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 0, 19),
 							args: [
-								idnt('nil', 0, 24),
+								tree(null),
 								idnt('X', 0, 28)
 							]
 						}
@@ -92,7 +266,7 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 2, 6),
 							args: [
-								idnt('nil', 2, 11),
+								tree(null),
 								idnt('X', 2, 15)
 							]
 						}
@@ -106,7 +280,7 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 3, 6),
 							args: [
-								idnt('nil', 3, 11),
+								tree(null),
 								idnt('Y', 3, 15)
 							]
 						}
@@ -199,8 +373,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 0, 36),
-										idnt('nil', 0, 40),
+										tree(null),
+										tree(null),
 									]
 								}
 							}
@@ -305,11 +479,7 @@ describe('Parser', function () {
 							type: 'equal',
 							complete: true,
 							arg1: idnt('X', 1, 5),
-							arg2: {
-								type: 'tree',
-								complete: true,
-								tree: tn(5)
-							},
+							arg2: tree(tn(5)),
 						},
 						if: [
 							{
@@ -403,8 +573,8 @@ describe('Parser', function () {
 										complete: true,
 										op: opr('cons', 3, 11),
 										args: [
-											idnt('nil', 3, 16),
-											idnt('nil', 3, 20),
+											tree(null),
+											tree(null),
 										],
 									},
 								}
@@ -444,19 +614,19 @@ describe('Parser', function () {
 							{
 								type: 'switch_case',
 								complete: true,
-								cond: idnt('nil', 2, 9),
+								cond: tree(null),
 								body: [
 									{
 										type: 'assign',
 										complete: true,
 										ident: idnt('Y1', 3, 6),
-										arg: idnt('nil', 3, 12),
+										arg: tree(null),
 									},
 									{
 										type: 'assign',
 										complete: true,
 										ident: idnt('Y2', 4, 6),
-										arg: idnt('nil', 4, 12),
+										arg: tree(null),
 									},
 									{
 										type: 'assign',
@@ -482,8 +652,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr('cons', 6, 9),
 									args: [
-										idnt('nil', 6, 14),
-										idnt('nil', 6, 18),
+										tree(null),
+										tree(null),
 									]
 								},
 								body: [
@@ -496,14 +666,14 @@ describe('Parser', function () {
 											complete: true,
 											op: opr('cons', 7, 11),
 											args: [
-												idnt('nil', 7, 16),
+												tree(null),
 												{
 													type: 'operation',
 													complete: true,
 													op: opr('cons', 7, 20),
 													args: [
-														idnt('nil', 7, 25),
-														idnt('nil', 7, 29),
+														tree(null),
+														tree(null),
 													],
 												},
 											],
@@ -555,19 +725,19 @@ describe('Parser', function () {
 							{
 								type: 'switch_case',
 								complete: true,
-								cond: idnt('nil', 2, 9),
+								cond: tree(null),
 								body: [
 									{
 										type: 'assign',
 										complete: true,
 										ident: idnt('Y1', 3, 6),
-										arg: idnt('nil', 3, 12),
+										arg: tree(null),
 									},
 									{
 										type: 'assign',
 										complete: true,
 										ident: idnt('Y2', 4, 6),
-										arg: idnt('nil', 4, 12),
+										arg: tree(null),
 									},
 									{
 										type: 'assign',
@@ -593,8 +763,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr('cons', 6, 9),
 									args: [
-										idnt('nil', 6, 14),
-										idnt('nil', 6, 18),
+										tree(null),
+										tree(null),
 									]
 								},
 								body: [
@@ -607,14 +777,14 @@ describe('Parser', function () {
 											complete: true,
 											op: opr('cons', 7, 11),
 											args: [
-												idnt('nil', 7, 16),
+												tree(null),
 												{
 													type: 'operation',
 													complete: true,
 													op: opr('cons', 7, 20),
 													args: [
-														idnt('nil', 7, 25),
-														idnt('nil', 7, 29),
+														tree(null),
+														tree(null),
 													],
 												},
 											],
@@ -636,20 +806,20 @@ describe('Parser', function () {
 										complete: true,
 										op: opr('cons', 9, 11),
 										args: [
-											idnt('nil', 9, 16),
+											tree(null),
 											{
 												type: 'operation',
 												complete: true,
 												op: opr('cons', 9, 20),
 												args: [
-													idnt('nil', 9, 25),
+													tree(null),
 													{
 														type: 'operation',
 														complete: true,
 														op: opr('cons', 9, 29),
 														args: [
-															idnt('nil', 9, 34),
-															idnt('nil', 9, 38),
+															tree(null),
+															tree(null),
 														],
 													},
 												],
@@ -697,11 +867,7 @@ describe('Parser', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('Y', 1, 2),
-						arg: {
-							type: 'tree',
-							complete: true,
-							tree: tn(0)
-						}
+						arg: tree(tn(0))
 					}
 				]
 			};
@@ -729,11 +895,7 @@ describe('Parser', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('Y', 1, 2),
-						arg: {
-							type: 'tree',
-							complete: true,
-							tree: tn(7)
-						}
+						arg: tree(tn(7))
 					}
 				]
 			};
@@ -761,11 +923,7 @@ describe('Parser', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('Y', 1, 2),
-						arg: {
-							type: 'tree',
-							complete: true,
-							tree: tn(12)
-						}
+						arg: tree(tn(12))
 					}
 				]
 			};
@@ -816,6 +974,67 @@ describe('Parser', function () {
 			]);
 		});
 	});
+
+	describe('values', function () {
+		describe('pure', function () {
+			it(`should convert 'nil' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens)).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should convert 'true' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens)).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+		});
+	});
+
 
 	describe('lists', function () {
 		it(`should accept empty lists`, function () {
@@ -958,11 +1177,11 @@ describe('Parser', function () {
 													complete: true,
 													op: opr('cons', 1, 14),
 													args: [
-														idnt('nil', 1, 19),
-														idnt('nil', 1, 23)
+														tree(null),
+														tree(null)
 													]
 												},
-												idnt('nil', 1, 27)
+												tree(null)
 											]
 										},
 										{
@@ -1021,8 +1240,8 @@ describe('Parser', function () {
 					arg: {
 						type: 'tree_expr',
 						complete: true,
-						left: idnt('nil', 1, 8),
-						right: idnt('nil', 1, 12),
+						left: tree(null),
+						right: tree(null),
 					}
 				}]
 			};
@@ -1054,14 +1273,14 @@ describe('Parser', function () {
 						left: {
 							type: 'tree_expr',
 							complete: true,
-							left: idnt('nil', 1, 9),
-							right: idnt('nil', 1, 13),
+							left: tree(null),
+							right: tree(null),
 						},
 						right: {
 							type: 'tree_expr',
 							complete: true,
-							left: idnt('nil', 1, 19),
-							right: idnt('nil', 1, 23),
+							left: tree(null),
+							right: tree(null),
 						},
 					}
 				}]
@@ -1091,16 +1310,8 @@ describe('Parser', function () {
 					arg: {
 						type: 'tree_expr',
 						complete: true,
-						left: {
-							type: 'tree',
-							complete: true,
-							tree: tn(4),
-						},
-						right: {
-							type: 'tree',
-							complete: true,
-							tree: tn(5),
-						},
+						left: tree(tn(4)),
+						right: tree(tn(5)),
 					}
 				}]
 			};
@@ -1134,16 +1345,8 @@ describe('Parser', function () {
 								type: 'list',
 								complete: true,
 								elements: [
-									{
-										type: 'tree',
-										complete: true,
-										tree: tn(4),
-									},
-									{
-										type: 'tree',
-										complete: true,
-										tree: tn(5),
-									},
+									tree(tn(4)),
+									tree(tn(5)),
 								]
 							},
 							right: {
@@ -1209,8 +1412,8 @@ describe('Parser', function () {
 										complete: true,
 										op: opr('cons', 1, 22),
 										args: [
-											idnt('nil', 1, 27),
-											idnt('nil', 1, 31)
+											tree(null),
+											tree(null)
 										],
 									},
 									right: {
@@ -1266,11 +1469,7 @@ describe('Parser', function () {
 						type: 'macro',
 						complete: true,
 						program: 'prog',
-						input: {
-							type: 'tree',
-							complete: true,
-							tree: tn(7),
-						}
+						input: tree(tn(7))
 					}
 				}]
 			};
@@ -1395,7 +1594,7 @@ describe('Parser', function () {
 									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 0, 29),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -1403,8 +1602,8 @@ describe('Parser', function () {
 											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 0, 38),
-												idnt('nil', 0, 42),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -1415,8 +1614,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 0, 51),
-										idnt('nil', 0, 55),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -1459,7 +1658,7 @@ describe('Parser', function () {
 									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 0, 30),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -1467,8 +1666,8 @@ describe('Parser', function () {
 											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 0, 40),
-												idnt('nil', 0, 44),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -1479,8 +1678,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 0, 56),
-										idnt('nil', 0, 60),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -2000,8 +2199,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 0, 36),
-										idnt('nil', 0, 40),
+										tree(null),
+										tree(null),
 									]
 								}
 							}
@@ -2109,7 +2308,7 @@ describe('Parser Error Checker', function () {
 							{
 								type: 'switch_case',
 								complete: false,
-								cond: idnt('nil', 2, 9),
+								cond: tree(null),
 								body: [],
 							}
 						],
@@ -2121,7 +2320,7 @@ describe('Parser Error Checker', function () {
 									type: 'assign',
 									complete: true,
 									ident: idnt('Y', 4, 6),
-									arg: idnt('nil', 4, 11),
+									arg: tree(null),
 								}
 							],
 						}
@@ -2162,13 +2361,13 @@ describe('Parser Error Checker', function () {
 							{
 								type: 'switch_case',
 								complete: true,
-								cond: idnt('nil', 2, 9),
+								cond: tree(null),
 								body: [
 									{
 										type: 'assign',
 										complete: true,
 										ident: idnt('Y', 3, 6),
-										arg: idnt('nil', 3, 11),
+										arg: tree(null),
 									}
 								],
 							}
@@ -2215,13 +2414,13 @@ describe('Parser Error Checker', function () {
 							{
 								type: 'switch_case',
 								complete: true,
-								cond: idnt('nil', 4, 9),
+								cond: tree(null),
 								body: [
 								{
 									type: 'assign',
 									complete: true,
 									ident: idnt('Y', 5, 6),
-									arg: idnt('nil', 5, 11),
+									arg: tree(null),
 								}
 								],
 							}
@@ -2234,7 +2433,7 @@ describe('Parser Error Checker', function () {
 									type: 'assign',
 									complete: true,
 									ident: idnt('Y', 3, 6),
-									arg: idnt('nil', 3, 11),
+									arg: tree(null),
 								}
 
 							],
@@ -2288,7 +2487,7 @@ describe('Parser Error Checker', function () {
 									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 0, 29),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -2296,8 +2495,8 @@ describe('Parser Error Checker', function () {
 											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 0, 38),
-												idnt('nil', 0, 42),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -2308,8 +2507,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 0, 51),
-										idnt('nil', 0, 55),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -2352,7 +2551,7 @@ describe('Parser Error Checker', function () {
 									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 0, 30),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -2360,8 +2559,8 @@ describe('Parser Error Checker', function () {
 											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 0, 40),
-												idnt('nil', 0, 44),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -2372,8 +2571,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 0, 56),
-										idnt('nil', 0, 60),
+										tree(null),
+										tree(null),
 									]
 								}
 							]

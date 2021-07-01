@@ -15,6 +15,7 @@ import {
 	EXPR_TOKEN_EXTD, EXPR_TYPE_EXTD,
 	NUMBER_TYPE, OP_TOKEN_EXTD, OP_TYPE_EXTD, SYMBOL_TOKEN_EXTD, SYMBOL_TYPE_EXTD,
 } from "../src/types/extendedTokens";
+import { AST_TREE } from "../src/types/ast";
 
 //Useful functions
 
@@ -68,6 +69,18 @@ export function a(...elements: (BinaryTree|number)[]): BinaryTree {
 	}
 
 	return tree;
+}
+
+/**
+ * Wrap a {@link BinaryTree} object in an {@link AST_TREE}.
+ * @param t	The tree to wrap
+ */
+export function tree(t: BinaryTree): AST_TREE {
+	return {
+		type: 'tree',
+		complete: true,
+		tree: t
+	}
 }
 
 
