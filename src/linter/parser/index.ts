@@ -291,17 +291,6 @@ class StateManager {
 	}
 }
 
-/*
-TODO: Add support for extended language:
- [X] equality
- [X] numbers
- [X] booleans
- [X] switch
- [X] lists
- [X] trees
- [X] macro call
-*/
-
 /**
  * Convert a number to it's binary tree representation
  * @param n		The number to convert

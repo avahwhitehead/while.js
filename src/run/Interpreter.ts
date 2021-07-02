@@ -90,8 +90,11 @@ export default class Interpreter {
 	 */
 	public static parse(program: string, inputTree: BinaryTree, props?: InterpreterProps): { success: true, interpreter: Interpreter }|{ success: false, errors: ErrorType[] } {
 		//Pass the program through the lexer and parer
-		let [tokenList,] = lexer(program, props?.lexOpts);
-		let [ast, errors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList, props?.parseOpts);
+		let [tokenList, lexerErrors] = lexer(program, props?.lexOpts);
+		let [ast, parseErrors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList, props?.parseOpts);
+
+		//Combine the lexer and parser errors into a single list
+		let errors: ErrorType[] = [...lexerErrors, ...parseErrors];
 
 		if (ast.complete) {
 			//Create and return an interpreter
