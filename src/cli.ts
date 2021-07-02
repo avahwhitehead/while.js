@@ -44,7 +44,8 @@ function _runInterpreter(filePath: string, tree: BinaryTree, options: Interprete
 	}
 
 	//Attempt to create an interpreter from the program and input
-	let res = Interpreter.parse(program, tree);
+	let interpreterOpts = { lexOpts: {pureOnly: options.pure}, parseOpts: {pureOnly: options.pure} };
+	let res = Interpreter.parse(program, tree, interpreterOpts);
 	if (res.success) {
 		//Run the interpreter
 		let output: BinaryTree = res.interpreter.run();
@@ -67,6 +68,10 @@ interface InterpreterOptions {
 	 * Default variable output format.
 	 */
 	output: string;
+	/**
+	 * Whether to run as pure WHILE.
+	 */
+	pure: boolean;
 }
 
 //Set up the command line interface options
@@ -79,6 +84,7 @@ program
 			 'input': 'Binary tree to pass as input to the WHILE program',
 		}
 	)
+	.option('-p, --pure', 'run the program using pure WHILE syntax only')
 	.option('-o, --output <format>', 'default tree output format')
 	.arguments('<file> <input>')
 	.action((file: string, input: string) => {

@@ -1,19 +1,196 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import parser, { ErrorType } from "../../src/linter/parser";
+import parser from "../../src/linter/parser";
 import lexer from "../../src/linter/lexer";
 import {
 	TKN_CONS,
 	TKN_HD,
 	TKN_TL,
+	WHILE_TOKEN,
 } from "../../src/types/tokens";
 import { AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
-import { expr, idnt, opr, sym, ukwn } from "../utils";
+import { error, idnt, opr, tn, tree } from "../utils";
+import { ErrorType } from "../../src";
+import { WHILE_TOKEN_EXTD } from "../../src/types/extendedTokens";
 
 chai.config.truncateThreshold = 0;
 
 describe('Parser', function () {
+	describe('values', function () {
+		describe('pure', function () {
+			it(`should convert 'nil' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should keep 'false' as an identifier`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: idnt('false', 1, 7)
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := false\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should keep 'true' as an identifier`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: idnt('true', 1, 7)
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := true\n' +
+					'} write Y',
+					{pureOnly: true}
+				);
+				expect(parser(tokens, {pureOnly: true})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+		});
+
+		describe('extended', function () {
+			it(`should convert 'nil' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := nil\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should convert 'false' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(0))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := false\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+
+			it(`should convert 'true' to a tree`, function () {
+				let expected: AST_PROG = {
+					type: 'program',
+					complete: true,
+					name: idnt('prog', 0, 0),
+					input: idnt('X', 0, 10),
+					output: idnt('Y', 2, 8),
+					body: [
+						{
+							type: 'assign',
+							complete: true,
+							ident: idnt('Y', 1, 2),
+							arg: tree(tn(1))
+						}
+					]
+				};
+				let [tokens,] = lexer(
+					'prog read X {\n' +
+					'  Y := true\n' +
+					'} write Y',
+					{pureOnly: false}
+				);
+				expect(parser(tokens, {pureOnly: false})).to.deep.equal([
+					expected,
+					[]
+				]);
+			});
+		});
+	});
+
 	describe('identity program', function () {
 		it(`should be accepted`, function () {
 			const expected: AST_PROG = {
@@ -24,9 +201,11 @@ describe('Parser', function () {
 				output: idnt('X', 0, 22),
 				body: []
 			};
-			expect(parser(lexer(
-				'ident read X {} write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'ident read X {} write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -51,16 +230,18 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 0, 19),
 							args: [
-								idnt('nil', 0, 24),
+								tree(null),
 								idnt('X', 0, 28)
 							]
 						}
 					}
 				]
 			};
-			expect(parser(lexer(
-				'add1 read X { Y := cons nil X } write Y'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'add1 read X { Y := cons nil X } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -85,7 +266,7 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 2, 6),
 							args: [
-								idnt('nil', 2, 11),
+								tree(null),
 								idnt('X', 2, 15)
 							]
 						}
@@ -99,21 +280,23 @@ describe('Parser', function () {
 							complete: true,
 							op: opr(TKN_CONS, 3, 6),
 							args: [
-								idnt('nil', 3, 11),
+								tree(null),
 								idnt('Y', 3, 15)
 							]
 						}
 					}
 				]
 			};
-			expect(parser(lexer(
+			let [tokens,] = lexer(
 				'add2\n' +
 				'read X {\n' +
 				'	Y := cons nil X;\n' +
 				'	Y := cons nil Y\n' +
 				'}\n' +
-				'write Y'
-			))).to.deep.equal([
+				'write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -151,9 +334,11 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { while X { X := tl X } } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { while X { X := tl X } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -188,8 +373,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 0, 36),
-										idnt('nil', 0, 40),
+										tree(null),
+										tree(null),
 									]
 								}
 							}
@@ -198,9 +383,11 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { if (tl X) { Y := cons nil nil } } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -267,9 +454,1132 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept an equals condition`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('X', 4, 8),
+				body: [
+					{
+						type: 'cond',
+						complete: true,
+						condition: {
+							type: 'equal',
+							complete: true,
+							arg1: idnt('X', 1, 5),
+							arg2: tree(tn(5)),
+						},
+						if: [
+							{
+								type: 'assign',
+								complete: true,
+								ident: idnt('X', 2, 4),
+								arg: {
+									type: 'operation',
+									complete: true,
+									op: opr(TKN_TL, 2, 9),
+									args: [idnt('X', 2, 12)]
+								}
+							}
+						],
+						else: []
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  if X=5 {\n' +
+				'    X := tl X\n' +
+				'  }\n' +
+				'} write X',
+			) as [WHILE_TOKEN_EXTD[],unknown];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('switch statement', function () {
+		it(`should accept an empty switch`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 3, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: []
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'  }\n' +
+				'} write Y',
+			{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a switch with only a default`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 5, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 3, 6),
+									arg: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 3, 11),
+										args: [
+											tree(null),
+											tree(null),
+										],
+									},
+								}
+							],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    default:\n' +
+				'      Y := cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a switch with multiple cases`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 9, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: tree(null),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y1', 3, 6),
+										arg: tree(null),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y2', 4, 6),
+										arg: tree(null),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 5, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 5, 11),
+											args: [
+												idnt('Y1', 5, 16),
+												idnt('Y2', 5, 19),
+											],
+										},
+									},
+								],
+							},
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: {
+									type: 'operation',
+									complete: true,
+									op: opr('cons', 6, 9),
+									args: [
+										tree(null),
+										tree(null),
+									]
+								},
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 7, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 7, 11),
+											args: [
+												tree(null),
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 7, 20),
+													args: [
+														tree(null),
+														tree(null),
+													],
+												},
+											],
+										},
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y1 := nil;\n' +
+				'      Y2 := nil;\n' +
+				'      Y := cons Y1 Y2\n' +
+				'    case cons nil nil:\n' +
+				'      Y := cons nil cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a full switch with multiple cases`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 11, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: true,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: tree(null),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y1', 3, 6),
+										arg: tree(null),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y2', 4, 6),
+										arg: tree(null),
+									},
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 5, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 5, 11),
+											args: [
+												idnt('Y1', 5, 16),
+												idnt('Y2', 5, 19),
+											],
+										},
+									},
+								],
+							},
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: {
+									type: 'operation',
+									complete: true,
+									op: opr('cons', 6, 9),
+									args: [
+										tree(null),
+										tree(null),
+									]
+								},
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 7, 6),
+										arg: {
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 7, 11),
+											args: [
+												tree(null),
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 7, 20),
+													args: [
+														tree(null),
+														tree(null),
+													],
+												},
+											],
+										},
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 9, 6),
+									arg: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 9, 11),
+										args: [
+											tree(null),
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('cons', 9, 20),
+												args: [
+													tree(null),
+													{
+														type: 'operation',
+														complete: true,
+														op: opr('cons', 9, 29),
+														args: [
+															tree(null),
+															tree(null),
+														],
+													},
+												],
+											},
+										],
+									},
+								}
+							],
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y1 := nil;\n' +
+				'      Y2 := nil;\n' +
+				'      Y := cons Y1 Y2\n' +
+				'    case cons nil nil:\n' +
+				'      Y := cons nil cons nil nil\n' +
+				'    default:\n' +
+				'      Y := cons nil cons nil cons nil nil\n' +
+				'  }\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('numbers', function () {
+		it(`extended language should accept 0`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: tree(tn(0))
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 0\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept numbers`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: tree(tn(7))
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 7\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`extended language should accept "long" numbers`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: tree(tn(12))
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 12\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`pure language should reject numbers`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: false,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'operation',
+							complete: false,
+							op: null,
+							args: []
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := 7\n' +
+				'} write Y',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[], ErrorType[]];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[
+					error(`Unexpected token "7": Expected an expression or an identifier`, 1, 7)
+				]
+			]);
+		});
+	});
+
+	describe('equality binding', function () {
+		it(`should correctly parse X = X`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('eq', 0, 0),
+				input: idnt('X', 0, 8),
+				output: idnt('R', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('R', 1, 2),
+						arg: {
+							type: 'equal',
+							complete: true,
+							arg1: idnt('X', 1, 7),
+							arg2: idnt('X', 1, 11),
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'eq read X {\n' +
+				'  R := X = X\n' +
+				'} write R\n',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should bind "hd X = tl X" correctly`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('eq', 0, 0),
+				input: idnt('X', 0, 8),
+				output: idnt('R', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('R', 1, 2),
+						arg: {
+							type: 'equal',
+							complete: true,
+							arg1: {
+								type: 'operation',
+								complete: true,
+								op: opr('hd', 1, 7),
+								args: [idnt('X', 1, 10)],
+							},
+							arg2: {
+								type: 'operation',
+								complete: true,
+								op: opr('tl', 1, 14),
+								args: [idnt('X', 1, 17)],
+							},
+						},
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'eq read X {\n' +
+				'  R := hd X = tl X\n' +
+				'} write R\n',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+
+	describe('lists', function () {
+		it(`should accept empty lists`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: []
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := []\n' +
+				'} write Y',
+				{pureOnly: false}
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with 1 element`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								idnt('X', 1, 8)
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [X]\n' +
+				'} write Y'
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with multiple elements`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								idnt('X', 1, 8),
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('hd', 1, 11),
+									args: [idnt('X', 1, 14)]
+								},
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('tl', 1, 17),
+									args: [idnt('X', 1, 20)]
+								}
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [X, hd X, tl X]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept a list with complex elements`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								{
+									type: 'list',
+									complete: true,
+									elements: [
+										{
+											type: 'operation',
+											complete: true,
+											op: opr('cons', 1, 9),
+											args: [
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('cons', 1, 14),
+													args: [
+														tree(null),
+														tree(null)
+													]
+												},
+												tree(null)
+											]
+										},
+										{
+											type: 'operation',
+											complete: true,
+											op: opr('hd', 1, 32),
+											args: [
+												{
+													type: 'operation',
+													complete: true,
+													op: opr('hd', 1, 35),
+													args: [idnt('X', 1, 38)]
+												},
+											]
+										},
+									]
+								},
+								idnt('X', 1, 42),
+								{
+									type: 'list',
+									complete: true,
+									elements: [
+										idnt('X', 1, 46),
+										idnt('X', 1, 49),
+									]
+								},
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [[cons cons nil nil nil, hd hd X], X, [X, X]]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('trees', function () {
+		it(`should accept <nil.nil>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: tree(null),
+						right: tree(null),
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <nil.nil>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <<nil.nil>.<nil.nil>>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: {
+							type: 'tree_expr',
+							complete: true,
+							left: tree(null),
+							right: tree(null),
+						},
+						right: {
+							type: 'tree_expr',
+							complete: true,
+							left: tree(null),
+							right: tree(null),
+						},
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <<nil.nil>.<nil.nil>>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <4.5>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'tree_expr',
+						complete: true,
+						left: tree(tn(4)),
+						right: tree(tn(5)),
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <4.5>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept <[4,5].[]>`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'tree_expr',
+							complete: true,
+							left: {
+								type: 'list',
+								complete: true,
+								elements: [
+									tree(tn(4)),
+									tree(tn(5)),
+								]
+							},
+							right: {
+								type: 'list',
+								complete: true,
+								elements: [],
+							},
+						}
+
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <[4,5].[]>\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept [<tl X.hd X>, <cons nil nil.cons hd X tl X>]`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [
+					{
+						type: 'assign',
+						complete: true,
+						ident: idnt('Y', 1, 2),
+						arg: {
+							type: 'list',
+							complete: true,
+							elements: [
+								// <tl X.hd X>
+								{
+									type: 'tree_expr',
+									complete: true,
+									left: {
+										type: 'operation',
+										complete: true,
+										op: opr('tl', 1, 9),
+										args: [idnt('X', 1, 12)],
+									},
+									right: {
+										type: 'operation',
+										complete: true,
+										op: opr('hd', 1, 14),
+										args: [idnt('X', 1, 17)],
+									},
+								},
+								//<cons nil nil.cons hd X tl X>
+								{
+									type: 'tree_expr',
+									complete: true,
+									left: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 1, 22),
+										args: [
+											tree(null),
+											tree(null)
+										],
+									},
+									right: {
+										type: 'operation',
+										complete: true,
+										op: opr('cons', 1, 35),
+										args: [
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('hd', 1, 40),
+												args: [idnt('X', 1, 43)],
+											},
+											{
+												type: 'operation',
+												complete: true,
+												op: opr('tl', 1, 45),
+												args: [idnt('X', 1, 48)],
+											},
+										],
+									},
+								}
+							]
+						}
+					}
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := [<tl X.hd X>, <cons nil nil.cons hd X tl X>]\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+	});
+
+	describe('macros', function () {
+		it(`should accept '<prog> 7'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: tree(tn(7))
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> 7\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept '<prog> hd X'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: {
+							type: 'operation',
+							complete: true,
+							op: opr('hd', 1, 14),
+							args: [idnt('X', 1, 17)]
+						}
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> hd X\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				[]
+			]);
+		});
+
+		it(`should accept '<prog> cons hd X tl X'`, function () {
+			let expected: AST_PROG = {
+				type: 'program',
+				complete: true,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 2, 8),
+				body: [{
+					type: 'assign',
+					complete: true,
+					ident: idnt('Y', 1, 2),
+					arg: {
+						type: 'macro',
+						complete: true,
+						program: 'prog',
+						input: {
+							type: 'operation',
+							complete: true,
+							op: opr('cons', 1, 14),
+							args: [
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('hd', 1, 19),
+									args: [idnt('X', 1, 22)]
+								},
+								{
+									type: 'operation',
+									complete: true,
+									op: opr('tl', 1, 24),
+									args: [idnt('X', 1, 27)]
+								}
+							]
+						}
+					}
+				}]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  Y := <prog> cons hd X tl X\n' +
+				'} write Y',
+			);
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -302,7 +1612,7 @@ describe('Parser', function () {
 									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 0, 29),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -310,8 +1620,8 @@ describe('Parser', function () {
 											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 0, 38),
-												idnt('nil', 0, 42),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -322,8 +1632,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 0, 51),
-										idnt('nil', 0, 55),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -331,9 +1641,11 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -364,7 +1676,7 @@ describe('Parser', function () {
 									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 0, 30),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -372,8 +1684,8 @@ describe('Parser', function () {
 											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 0, 40),
-												idnt('nil', 0, 44),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -384,8 +1696,8 @@ describe('Parser', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 0, 56),
-										idnt('nil', 0, 60),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -393,9 +1705,11 @@ describe('Parser', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -430,9 +1744,11 @@ describe('Parser', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
-				'prog read X { X := hd hd hd X } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := hd hd hd X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -467,15 +1783,18 @@ describe('Parser', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
-				'prog read X { X := tl tl tl X } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := tl tl tl X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
 		});
 	});
 });
+
 
 describe('Parser Error Checker', function () {
 	describe('error in base structure', function () {
@@ -492,17 +1811,21 @@ describe('Parser Error Checker', function () {
 				message: 'Unexpected end of input: Missing program name',
 				position: { row: 0, col: 0 }
 			}];
-			const res = parser(lexer(
-				''
-			));
+			let [tokens,] = lexer(
+				'',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			expect(res[0]).to.deep.equal(expectedAst);
 			expect(res[1]).to.deep.equal(expectedErrors);
 		});
 
 		it(`"name"`, function () {
-			const res = parser(lexer(
-				'name'
-			));
+			let [tokens,] = lexer(
+				'name',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL = {
 				type: 'program',
 				complete: false,
@@ -520,9 +1843,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name {}"`, function () {
-			const res = parser(lexer(
-				'name {}'
-			));
+			let [tokens,] = lexer(
+				'name {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -546,9 +1871,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"{}"`, function () {
-			const res = parser(lexer(
-				'{}'
-			));
+			let [tokens,] = lexer(
+				'{}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -576,9 +1903,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read"`, function () {
-			const res = parser(lexer(
-				'name read'
-			));
+			let [tokens,] = lexer(
+				'name read',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -596,9 +1925,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {"`, function () {
-			const res = parser(lexer(
-				'name read X {'
-			));
+			let [tokens,] = lexer(
+				'name read X {',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -616,10 +1947,12 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`no closing bracket onwards`, function () {
-			const res = parser(lexer(
+			let [tokens,] = lexer(
 				'name read Y {\n'
-				+ '  X := Y'
-			));
+				+ '  X := Y',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -631,11 +1964,7 @@ describe('Parser Error Checker', function () {
 						type: 'assign',
 						complete: true,
 						ident: idnt('X', 1, 2),
-						arg: {
-							type: 'identifier',
-							value: 'Y',
-							pos: { row: 1, col: 7 }
-						}
+						arg: idnt('Y', 1, 7)
 					}
 				],
 			};
@@ -648,9 +1977,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read {}"`, function () {
-			const res = parser(lexer(
-				'name read {}'
-			));
+			let [tokens,] = lexer(
+				'name read {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -674,9 +2005,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {}"`, function () {
-			const res = parser(lexer(
-				'name read X {}'
-			));
+			let [tokens,] = lexer(
+				'name read X {}',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -696,9 +2029,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} write"`, function () {
-			const res = parser(lexer(
-				'name read X {} write'
-			));
+			let [tokens,] = lexer(
+				'name read X {} write',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -717,9 +2052,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} X"`, function () {
-			const res = parser(lexer(
-				'name read X {} X'
-			));
+			let [tokens,] = lexer(
+				'name read X {} X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -744,9 +2081,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name X {} write X"`, function () {
-			const res = parser(lexer(
-				'name X {} write X'
-			));
+			let [tokens,] = lexer(
+				'name X {} write X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -764,9 +2103,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"name read X {} write"`, function () {
-			const res = parser(lexer(
-				'name read X {} write'
-			));
+			let [tokens,] = lexer(
+				'name read X {} write',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -784,9 +2125,11 @@ describe('Parser Error Checker', function () {
 		});
 
 		it(`"read X {} write X"`, function () {
-			const res = parser(lexer(
-				'read X {} write X'
-			));
+			let [tokens,] = lexer(
+				'read X {} write X',
+				{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			const res = parser(tokens);
 			const expectedAst: AST_PROG_PARTIAL|null = {
 				type: 'program',
 				complete: false,
@@ -803,8 +2146,6 @@ describe('Parser Error Checker', function () {
 			expect(res[1]).to.deep.equal(expectedErrors);
 		});
 	});
-
-	//TODO: Test same errors as above with populated code blocks
 
 	describe('while statement', function () {
 		it(`should be accepted`, function () {
@@ -837,9 +2178,11 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { while X { X := tl X } } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { while X { X := tl X } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -874,8 +2217,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 31),
 									args: [
-										idnt('nil', 0, 36),
-										idnt('nil', 0, 40),
+										tree(null),
+										tree(null),
 									]
 								}
 							}
@@ -884,9 +2227,11 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { if (tl X) { Y := cons nil nil } } write Y'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { if (tl X) { Y := cons nil nil } } write Y',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -953,11 +2298,183 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { if X { X := tl X } else { if X { X := tl X } else { X := tl X } } } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
+			]);
+		});
+	});
+
+	describe('switch statement', function () {
+		it(`should not accept empty cases`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 6, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: false,
+								cond: tree(null),
+								body: [],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 4, 6),
+									arg: tree(null),
+								}
+							],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'    default:\n' +
+				'      Y := nil\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`Switch cases may not have empty bodies`, 2, 12)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
+			]);
+		});
+
+		it(`should not accept empty default`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 6, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: tree(null),
+								body: [
+									{
+										type: 'assign',
+										complete: true,
+										ident: idnt('Y', 3, 6),
+										arg: tree(null),
+									}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: false,
+							body: [],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    case nil:\n' +
+				'      Y := nil\n' +
+				'    default:\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`Switch cases may not have empty bodies`, 4, 11)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
+			]);
+		});
+
+		it(`should not accept non-terminal default`, function () {
+			let expected: AST_PROG_PARTIAL = {
+				type: 'program',
+				complete: false,
+				name: idnt('prog', 0, 0),
+				input: idnt('X', 0, 10),
+				output: idnt('Y', 7, 8),
+				body: [
+					{
+						type: 'switch',
+						complete: false,
+						condition: idnt('X', 1, 9),
+						cases: [
+							{
+								type: 'switch_case',
+								complete: true,
+								cond: tree(null),
+								body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 5, 6),
+									arg: tree(null),
+								}
+								],
+							}
+						],
+						default: {
+							type: 'switch_default',
+							complete: true,
+							body: [
+								{
+									type: 'assign',
+									complete: true,
+									ident: idnt('Y', 3, 6),
+									arg: tree(null),
+								}
+
+							],
+						}
+					},
+				]
+			};
+			let [tokens,] = lexer(
+				'prog read X {\n' +
+				'  switch X {\n' +
+				'    default:\n' +
+				'      Y := nil\n' +
+				'    case nil:\n' +
+				'      Y := nil\n' +
+				'  }\n' +
+				'} write Y'
+			);
+			let errors: ErrorType[] = [
+				error(`The 'default' case should be the last case in the block`, 4, 4)
+			];
+			expect(parser(tokens)).to.deep.equal([
+				expected,
+				errors
 			]);
 		});
 	});
@@ -988,7 +2505,7 @@ describe('Parser Error Checker', function () {
 									op: opr(TKN_CONS, 0, 24),
 									args: [
 										//nil
-										idnt('nil', 0, 29),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -996,8 +2513,8 @@ describe('Parser Error Checker', function () {
 											op: opr(TKN_CONS, 0, 33),
 											args: [
 												//nil nil
-												idnt('nil', 0, 38),
-												idnt('nil', 0, 42),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -1008,8 +2525,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 46),
 									args: [
-										idnt('nil', 0, 51),
-										idnt('nil', 0, 55),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -1017,9 +2534,11 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := cons cons nil cons nil nil cons nil nil } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1050,7 +2569,7 @@ describe('Parser Error Checker', function () {
 									op: opr(TKN_CONS, 0, 25),
 									args: [
 										//nil
-										idnt('nil', 0, 30),
+										tree(null),
 										{
 											//cons
 											type: 'operation',
@@ -1058,8 +2577,8 @@ describe('Parser Error Checker', function () {
 											op: opr(TKN_CONS, 0, 35),
 											args: [
 												//nil nil
-												idnt('nil', 0, 40),
-												idnt('nil', 0, 44),
+												tree(null),
+												tree(null),
 											]
 										}
 									]
@@ -1070,8 +2589,8 @@ describe('Parser Error Checker', function () {
 									complete: true,
 									op: opr(TKN_CONS, 0, 51),
 									args: [
-										idnt('nil', 0, 56),
-										idnt('nil', 0, 60),
+										tree(null),
+										tree(null),
 									]
 								}
 							]
@@ -1079,9 +2598,11 @@ describe('Parser Error Checker', function () {
 					},
 				]
 			};
-			expect(parser(lexer(
-				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := cons (cons nil (cons nil nil)) (cons nil nil) } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1116,9 +2637,11 @@ describe('Parser Error Checker', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
-				'prog read X { X := hd hd hd X } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := hd hd hd X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);
@@ -1153,9 +2676,11 @@ describe('Parser Error Checker', function () {
 					}
 				}]
 			};
-			expect(parser(lexer(
-				'prog read X { X := tl tl tl X } write X'
-			))).to.deep.equal([
+			let [tokens,] = lexer(
+				'prog read X { X := tl tl tl X } write X',
+			{pureOnly: true}
+			) as [WHILE_TOKEN[],unknown];
+			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[]
 			]);

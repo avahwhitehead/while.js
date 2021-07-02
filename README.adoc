@@ -1,0 +1,234 @@
+:icons: font
+= While.js
+
+This library provides an interpreter and syntax analysis tools for the WHILE language used at the University of Sussex.
+For more information about the WHILE language, see the <<_while_language_context_free_grammar, Context Free Grammar>,
+the link:https://github.com/sonrad10/Whide[Whide editor] (for which this library was produced), or the Haskell WHILE interpreter link:https://github.com/Alexj136/HWhile[HWhile].
+
+== Installing
+
+Install while.js globally using npm:
+
+[source,shell]
+----
+npm install -g whilejs
+----
+
+== Usage
+
+Run a WHILE program with:
+
+[source,shell]
+----
+whilejs prog.while <input tree>
+----
+
+Use the `-p` or `--pure` flag to run the program as pure WHILE (not allowing any extended language features).
+
+Additionally, the output display format of the program can be set using the `-o` or `--output` flags.
+The treeLang syntax is described on link:https://github.com/sonrad10/whide-treeLang[this page].
+
+Use `whilejs --help` for a complete list of the program options.
+
+== Usage (for developers)
+
+Add while.js to your project as a dependency:
+
+[source,shell]
+----
+npm install --save while.js
+----
+
+=== Interpreter
+
+Import the interpreter from the package.
+
+I recommend using the link:https://github.com/sonrad10/whide-treeLang[@whide/treeLang] package if you want to get binary trees as inputs from the user.
+
+The following example program runs a WHILE program with the input `+[1,2,3,4]+` (the list of numbers 1 through 4) and
+displays the output as a tree whose two children are each lists of numbers.
+It also demonstrates error handling for the output of the WHILE parser.
+
+[source,typescript]
+----
+import { BinaryTree, ErrorType, Interpreter } from 'whilejs';
+import treeConverter, { ConversionResultType, stringify, treeParser } from "@whide/tree-lang";
+
+//The program to run
+let whileprog: string = `
+prog read in {
+    out := cons in in
+} write out
+`;
+//Binary tree to pass as input to the program
+//Converted from a string for better readability
+let inputTree: BinaryTree = treeParser('[1,2,3,4]');
+
+//Parse the input program and produce an `Interpreter` object
+//If `success` is true, interpreter will contain a configured Interpreter object.
+//If `success` is false, interpreter will be undefined, and `errors` will contain a list of error messages
+let {success, errors, interpreter}: {success:true, interpreter:Interpreter}|{success:false, errors: ErrorType[]} =
+    Interpreter.parse(whileprog, inputTree);
+
+if (!success) {
+	//Show errors if parsing failed
+	console.error(`Parse failed with ${errors.length} errors:`);
+	for (let error of errors) {
+		console.error(`Error (${error.position.row}:${error.position.col}): ${error.message}`);
+	}
+} else {
+    //The program was parsed without issue
+
+    //Run the program and get the produced output
+	let output: BinaryTree = interpreter.run();
+
+    try {
+	    //Convert the outputted tree to a human readable format and display it
+        let res: ConversionResultType = treeConverter(output, '<int[].int[]>');
+        console.log(stringify(res.tree))
+    } catch (e) {
+        //Error when converting the tree
+        console.error(e);
+        return;
+    }
+}
+----
+
+=== Linter (lexer+parser)
+
+The linter performs syntax analysis on WHILE programs.
+This is made up of two steps;
+lexing the program string to produce a list of program tokens,
+and parsing the list of tokens into an Abstract Syntax Tree (AST) which represents the program.
+
+NOTE: If you just want to run WHILE programs, use `Interpreter.parse` instead.
+This is equivalent to running the linter, then creating an `Interpreter` object from the result.
+
+The lexer and parser attempt to work around syntax errors as much as possible in order to allow program analysis in
+programs with invalid syntax.
+This is useful in, for example, syntax checking in a code editor.
+
+When the lexer catches invalid syntax, the offending token(s) are added as an `unknown` type to the token list,
+and an error message is added to the error list.
+
+When the parser catches invalid syntax, the offending block (and all its parent nodes in the AST) is marked as incomplete,
+and any data which cannot be parsed from the code is filled with null.
+If the program's root AST node is marked as complete (i.e. `node.complete` is `true`) then the program was parsed without issue.
+Otherwise, at least one node in the tree contains incomplete data.
+
+[source,typescript]
+----
+import { ErrorType } from 'whilejs';
+import lex from "whilejs/lib/linter/lexer";
+import parser from "whilejs/lib/linter/parser";
+import { AST_PROG, AST_PROG_PARTIAL } from "whilejs/lib/types/ast";
+
+//The program to analyse
+let whileprog: string = `
+prog read in {
+    out := cons in in
+} write out
+`;
+
+//First run the program through the lexer to produce a list of program tokens
+let [tokenList, lexerErrors] = lex(whileprog);
+//Then run the token list through the parser to produce an AST
+let [ast, parseErrors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList);
+
+//Combine the lexer and parser errors into a single list
+let errors: ErrorType[] = [...lexerErrors, ...parseErrors];
+
+if (ast.complete) {
+    //The parser was run without any issues
+    //The AST is in a fit state to be passed to the interpreter
+    //Or for whatever else
+} else {
+    //The program couldn't be parsed completely
+    //The partial AST is returned for some a
+}
+----
+
+=== Testing
+
+You can run the library's tests with the following command:
+
+[source,shell]
+----
+npm run test
+----
+
+Alternatively use the following command to run individual files
+
+[source,shell]
+----
+npm run test-specific -- linter/parser.test.ts utils.test.ts
+----
+
+Or individual directories:
+
+[source,shell]
+----
+npm run test-specific -- linter/*.test.ts
+----
+
+== WHILE language Context-Free Grammar
+
+This grammar depicts the full extended WHILE language supported by while.js.
+This is very similar to the language described in Dr. Bernhard Reus' textbook "The Limits Of Computation" with only minor
+modifications.
+Features available in the extended language which are not available in the pure language have been annotated with an asterisk `+*+`.
+
+`<name>` represents the program name, and `<variable>` accepts any valid variable name.
+Variable names must conform to the regular expression `/^[a-z_]\w*/i`;
+that is, starting with a letter (of any case) or underscore, followed by any number of letters, numbers, or underscores.
+
+[source]
+----
+<program>         ::= <name> read <variable> <block> write <variable>
+
+<block>             ::= {}                                  // Block of commands
+                    | { <statement-list> }                  // Empty block
+
+<statement-list>    ::= <command>                           // Single command
+                    | <command>; <statement-list>           // List of commands
+
+<command>           ::= <variable> := <expression>          // Assignment
+                    | while <expression> <block>            // While loop
+                    | if <expression> <block>               // If-then
+                    | if <expression> <block> <elseblock>   // If-then-else
+                    // Switch statements
+*                   | switch <expression> { <rule-list> }
+*                   | switch <expression> { <rule-list> default : <statement-list> }
+
+<elseblock>         ::= else <block>                        // Else case
+
+<expression>        ::= <variable>                          // Variable Expression
+                    | nil                                   // Atom nil
+                    | cons <expression> <expression>        // Construct tree
+                    | hd <expression>                       // Left subtree
+                    | tl <expression>                       // Right subtree
+                    | ( <expression> )                      // Right subtree
+*                   | <expression> = <expression>           // Equality expressions
+*                   | <number>                              // All the natural numbers
+*                   | true                                  // Booleans
+*                   | false
+*                   | []                                    // Empty list constructor
+*                   | [<expression-list>]                   // Non-empty list constuctor
+                    // Here '<<...>>' means '...' surrounded by < and >
+*                   | << <expression> . <expression> >>         // Literal tree constructor
+*                   | <<name>> <expression>                 // Macro calls
+
+* <expression-list> ::= ...
+*                   | <expression>                          // Single expression list
+*                   | <expression>, <expression-list>       // Multiple expression list
+
+* <rule>            ::= case <expression-list> : <statement-list>
+
+* <rule-list>       ::= <rule>
+*                   | <rule> <rule-list>
+----
+
+The modifications made to the language are as follows:
+
+* Macro calls may be used in place of any expression, instead of only in assignment statements
+* Binary trees may be defined using the syntax `<expr1.expr2>` (where `expr1`` and ``expr2` are expressions) instead of using the `cons` oeprator

@@ -1,4 +1,5 @@
 import { BinaryTree } from "../src/types/Trees";
+import { ErrorType } from "../src";
 import {
 	EXPR_TOKEN,
 	EXPR_TYPE,
@@ -10,6 +11,11 @@ import {
 	UNKNOWN_TYPE
 } from "../src/types/tokens";
 import Position from "../src/types/position";
+import {
+	EXPR_TOKEN_EXTD, EXPR_TYPE_EXTD,
+	NUMBER_TYPE, OP_TOKEN_EXTD, OP_TYPE_EXTD, SYMBOL_TOKEN_EXTD, SYMBOL_TYPE_EXTD,
+} from "../src/types/extendedTokens";
+import { AST_TREE } from "../src/types/ast";
 
 //Useful functions
 
@@ -65,6 +71,18 @@ export function a(...elements: (BinaryTree|number)[]): BinaryTree {
 	return tree;
 }
 
+/**
+ * Wrap a {@link BinaryTree} object in an {@link AST_TREE}.
+ * @param t	The tree to wrap
+ */
+export function tree(t: BinaryTree): AST_TREE {
+	return {
+		type: 'tree',
+		complete: true,
+		tree: t
+	}
+}
+
 
 export function sym(t: SYMBOL_TOKEN, pos: Position): SYMBOL_TYPE;
 export function sym(t: SYMBOL_TOKEN, pos: number, col: number): SYMBOL_TYPE;
@@ -74,8 +92,22 @@ export function sym(t: SYMBOL_TOKEN, pos: Position|number, col?: number): SYMBOL
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
 	};
 }
+
+export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: Position): SYMBOL_TYPE_EXTD;
+export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: number, col: number): SYMBOL_TYPE_EXTD;
+export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: Position|number, col?: number): SYMBOL_TYPE_EXTD {
+	return {
+		type: 'symbol',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
+	};
+}
+
 export function expr(t: EXPR_TOKEN, pos: Position): EXPR_TYPE;
 export function expr(t: EXPR_TOKEN, pos: number, col: number): EXPR_TYPE;
 export function expr(t: EXPR_TOKEN, pos: Position|number, col?: number): EXPR_TYPE {
@@ -84,8 +116,22 @@ export function expr(t: EXPR_TOKEN, pos: Position|number, col?: number): EXPR_TY
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
 	};
 }
+
+export function e_expr(t: EXPR_TOKEN_EXTD, pos: Position): EXPR_TYPE_EXTD;
+export function e_expr(t: EXPR_TOKEN_EXTD, pos: number, col: number): EXPR_TYPE_EXTD;
+export function e_expr(t: EXPR_TOKEN_EXTD, pos: Position|number, col?: number): EXPR_TYPE_EXTD {
+	return {
+		type: 'expression',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
+	};
+}
+
 export function opr(t: OP_TOKEN, pos: Position): OP_TYPE;
 export function opr(t: OP_TOKEN, pos: number, col: number): OP_TYPE;
 export function opr(t: OP_TOKEN, pos: Position|number, col?: number): OP_TYPE {
@@ -94,8 +140,22 @@ export function opr(t: OP_TOKEN, pos: Position|number, col?: number): OP_TYPE {
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
 	};
 }
+
+export function e_opr(t: OP_TOKEN_EXTD, pos: Position): OP_TYPE_EXTD;
+export function e_opr(t: OP_TOKEN_EXTD, pos: number, col: number): OP_TYPE_EXTD;
+export function e_opr(t: OP_TOKEN_EXTD, pos: Position|number, col?: number): OP_TYPE_EXTD {
+	return {
+		type: 'operation',
+		value: t,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
+	};
+}
+
 export function idnt(t: string, pos: Position): IDENT_TYPE;
 export function idnt(t: string, pos: number, col: number): IDENT_TYPE;
 export function idnt(t: string, pos: Position|number, col?: number): IDENT_TYPE {
@@ -104,8 +164,10 @@ export function idnt(t: string, pos: Position|number, col?: number): IDENT_TYPE 
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length
 	};
 }
+
 export function ukwn(t: string, pos: Position): UNKNOWN_TYPE;
 export function ukwn(t: string, pos: number, col: number): UNKNOWN_TYPE;
 export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYPE {
@@ -114,5 +176,33 @@ export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYP
 		value: t,
 		//@ts-ignore
 		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length: t.length,
+	};
+}
+
+export function nmbr(v: number, pos: Position): NUMBER_TYPE;
+export function nmbr(v: number, pos: number, col: number): NUMBER_TYPE;
+export function nmbr(v: number, pos: Position|number, col?: number): NUMBER_TYPE {
+	let length: number;
+	if (v === 0) length = 1;
+	else length = Math.floor(Math.log10(v)) + 1;
+
+	return {
+		type: 'number',
+		value: v,
+		//@ts-ignore
+		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		length
+	};
+}
+
+
+export function error(msg: string, pos: Position): ErrorType;
+export function error(msg: string, pos: number, col: number): ErrorType;
+export function error(msg: string, pos: Position|number, col?: number): ErrorType {
+	return {
+		message: msg,
+		//@ts-ignore
+		position: (typeof pos === 'number') ? { row: pos, col: col } : pos,
 	};
 }
