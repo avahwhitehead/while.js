@@ -4,13 +4,13 @@ import lexer, { LexerOptions } from "../linter/lexer";
 import parser, { ParserOpts } from "../linter/parser";
 import { ErrorType } from "../utils/errorManager";
 import { OP_TYPE_EXTD } from "../types/extendedTokens";
+import { LinterOpts } from "../linter";
 
 /**
  * Constructor options for the {@link Interpreter} class
  */
-export interface InterpreterProps {
-	lexOpts?: LexerOptions;
-	parseOpts?: ParserOpts;
+export interface InterpreterProps extends LinterOpts {
+
 }
 
 type AST_BLOCK = {
@@ -89,6 +89,13 @@ export default class Interpreter {
 	 * @param props			Extra properties to pass when initialising the Interpreter
 	 */
 	public static parse(program: string, inputTree: BinaryTree, props?: InterpreterProps): { success: true, interpreter: Interpreter }|{ success: false, errors: ErrorType[] } {
+		let lexerOpts: LexerOptions = props?.lexOpts || {};
+		let parseOpts: ParserOpts = props?.parseOpts || {};
+		if (props?.pureOnly === true) {
+			lexerOpts.pureOnly = true;
+			parseOpts.pureOnly = true;
+		}
+
 		//Pass the program through the lexer and parer
 		let [tokenList, lexerErrors] = lexer(program, props?.lexOpts);
 		let [ast, parseErrors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList, props?.parseOpts);

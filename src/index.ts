@@ -1,9 +1,7 @@
-import parser from "./linter/parser";
-import lexer from "./linter/lexer";
+import linter from "./linter";
 import Interpreter, { InterpreterProps } from "./run/Interpreter";
 
-export { parser };
-export { lexer };
+export { linter };
 export { Interpreter, InterpreterProps };
 export { ErrorType } from "./utils/errorManager";
 export { BinaryTree } from "./types/Trees";
