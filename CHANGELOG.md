@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.0](https://github.com/sonrad10/while.js/compare/v1.2.4...v2.0.0) (2021-07-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Made lexer also return a list of error messages
+* Replaced lexer and parser global exports with a linter function
+
+### Features
+
+* added a function that performs lexing and parsing in one step ([5af9c4c](https://github.com/sonrad10/while.js/commit/5af9c4c773147beb7793b5721779b630844045a0))
+* added interpreter support for extended WHILE ([e7eeb3c](https://github.com/sonrad10/while.js/commit/e7eeb3cb783b3bf9ad8728db1d4fb5919d2edf0a))
+* wrote README file ([4a39bc4](https://github.com/sonrad10/while.js/commit/4a39bc46aa064b50d485c6bed24d9d9bbb414049))
+
+
+### Bug Fixes
+
+* type errors not showing for the program name/io variables ([858ee5f](https://github.com/sonrad10/while.js/commit/858ee5f26016f3d2c7e16212cbf5bbd5856e9fec))
+
 ### [1.2.4](https://github.com/sonrad10/while.js/compare/v1.2.3...v1.2.4) (2021-06-16)
 
 

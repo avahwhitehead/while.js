@@ -1,6 +1,6 @@
 {
   "name": "whilejs",
-  "version": "1.2.4",
+  "version": "2.0.0",
   "description": "A collection of tools for the WHILE language",
   "main": "lib/index.js",
   "module": "lib/index.js",
