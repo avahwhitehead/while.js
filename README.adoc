@@ -41,13 +41,13 @@ npm install --save while.js
 
 === Interpreter
 
-Import the interpreter from the package.
+See the following example for programmatically using the WHILE interpreter.
 
-I recommend using the link:https://github.com/sonrad10/whide-treeLang[@whide/treeLang] package if you want to get binary trees as inputs from the user.
-
-The following example program runs a WHILE program with the input `+[1,2,3,4]+` (the list of numbers 1 through 4) and
+This program runs a WHILE program with the input `+[1,2,3,4]+` (the list of numbers 1 through 4) and
 displays the output as a tree whose two children are each lists of numbers.
 It also demonstrates error handling for the output of the WHILE parser.
+
+If you want to get binary trees as inputs from the user, I recommend using the link:https://github.com/sonrad10/whide-treeLang[@whide/treeLang] package.
 
 [source,typescript]
 ----
@@ -94,34 +94,18 @@ if (!success) {
 }
 ----
 
-=== Linter (lexer+parser)
+=== Linter
 
 The linter performs syntax analysis on WHILE programs.
-This is made up of two steps;
-lexing the program string to produce a list of program tokens,
-and parsing the list of tokens into an Abstract Syntax Tree (AST) which represents the program.
+In order to provide as useful error messages as possible, the linter attempts to work around syntax errors as much as possible.
+This is particularly useful in, for example, syntax checking in a code editor.
 
 NOTE: If you just want to run WHILE programs, use `Interpreter.parse` instead.
 This is equivalent to running the linter, then creating an `Interpreter` object from the result.
 
-The lexer and parser attempt to work around syntax errors as much as possible in order to allow program analysis in
-programs with invalid syntax.
-This is useful in, for example, syntax checking in a code editor.
-
-When the lexer catches invalid syntax, the offending token(s) are added as an `unknown` type to the token list,
-and an error message is added to the error list.
-
-When the parser catches invalid syntax, the offending block (and all its parent nodes in the AST) is marked as incomplete,
-and any data which cannot be parsed from the code is filled with null.
-If the program's root AST node is marked as complete (i.e. `node.complete` is `true`) then the program was parsed without issue.
-Otherwise, at least one node in the tree contains incomplete data.
-
 [source,typescript]
 ----
-import { ErrorType } from 'whilejs';
-import lex from "whilejs/lib/linter/lexer";
-import parser from "whilejs/lib/linter/parser";
-import { AST_PROG, AST_PROG_PARTIAL } from "whilejs/lib/types/ast";
+import { ErrorType, linter } from 'whilejs';
 
 //The program to analyse
 let whileprog: string = `
@@ -130,23 +114,58 @@ prog read in {
 } write out
 `;
 
-//First run the program through the lexer to produce a list of program tokens
-let [tokenList, lexerErrors] = lex(whileprog);
-//Then run the token list through the parser to produce an AST
+//Run the linter on the input program
+let errors: ErrorType[] = linter(whileprog);
+
+//Do something with the list of errors
+//...
+----
+
+=== Using the Lexer and Parser
+
+The linter consists of two steps;
+firstly lexing the program string to produce a list of program tokens,
+then parsing the list of tokens into an Abstract Syntax Tree (AST) representing the program.
+
+The lexer and parser can be directly accessed using their individual imports.
+This is useful if you need access to the lexer token list or the program's AST.
+An example program for this is shown below:
+
+[source,typescript]
+----
+//Lexer imports
+import lexer from "whilejs/lib/linter/lexer";
+import { WHILE_TOKEN } from "whilejs/lib/types/tokens";
+import { WHILE_TOKEN_EXTD } from "whilejs/lib/types/extendedTokens";
+//Parser imports
+import parser from "whilejs/lib/linter/parser";
+import { AST_PROG,AST_PROG_PARTIAL } from "whilejs/lib/types/ast";
+//General imports
+import { ErrorType } from "whilejs";
+
+//The program to analyse
+let whileprog: string = `
+prog read in {
+    out := cons in in
+} write out
+`;
+
+//Run the program through the lexer to produce a list of program tokens
+let [tokenList, lexerErrors]: [(WHILE_TOKEN|WHILE_TOKEN_EXTD)[], ErrorType[]] = lexer(whileprog);
+//Then run the token list through the parser to produce an AST representing the program
 let [ast, parseErrors]: [(AST_PROG | AST_PROG_PARTIAL), ErrorType[]] = parser(tokenList);
 
-//Combine the lexer and parser errors into a single list
+//Optionally combine the lexer and parser errors into a single list
 let errors: ErrorType[] = [...lexerErrors, ...parseErrors];
-
-if (ast.complete) {
-    //The parser was run without any issues
-    //The AST is in a fit state to be passed to the interpreter
-    //Or for whatever else
-} else {
-    //The program couldn't be parsed completely
-    //The partial AST is returned for some a
-}
 ----
+
+When the lexer catches invalid syntax, the offending token(s) are added as an `unknown` type to the token list,
+and an error message is added to the error list.
+
+When the parser catches invalid syntax, the offending block (and all its parent nodes in the AST) is marked as incomplete,
+and any data which cannot be parsed from the code is filled with null.
+If the program's root AST node is marked as complete (i.e. `node.complete` is `true`) then the program was parsed without issue.
+Otherwise, at least one node in the tree contains incomplete data.
 
 === Testing
 
