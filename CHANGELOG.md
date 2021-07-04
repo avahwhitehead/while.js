@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.1.0](https://github.com/sonrad10/while.js/compare/v2.0.0...v2.1.0) (2021-07-04)
+
+
+### Features
+
+* added end positions to linter errors ([7c7af4f](https://github.com/sonrad10/while.js/commit/7c7af4ff6612039ab73cfc0d0692f8d489c1fea1))
+
 ## [2.0.0](https://github.com/sonrad10/while.js/compare/v1.2.4...v2.0.0) (2021-07-03)
 
 
