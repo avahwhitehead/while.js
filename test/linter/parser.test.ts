@@ -969,7 +969,7 @@ describe('Parser', function () {
 			expect(parser(tokens)).to.deep.equal([
 				expected,
 				[
-					error(`Unexpected token "7": Expected an expression or an identifier`, 1, 7)
+					error(`Unexpected token "7": Expected an expression or an identifier`, 1, 7, 1, 8)
 				]
 			]);
 		});
@@ -1807,17 +1807,13 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: null,
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Missing program name',
-				position: { row: 0, col: 0 }
-			}];
+			const expectedErrors: ErrorType[] = [error(`Unexpected end of input: Missing program name`, 0, 0, 0, 0)];
 			let [tokens,] = lexer(
 				'',
 				{pureOnly: true}
 			) as [WHILE_TOKEN[],unknown];
 			const res = parser(tokens);
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name"`, function () {
@@ -1834,12 +1830,10 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: null,
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Expected "read"',
-				position: { row: 0, col: 4 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [
+				error('Unexpected end of input: Expected "read"', 0, 4, 0, 4)
+			];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name {}"`, function () {
@@ -1857,17 +1851,10 @@ describe('Parser Error Checker', function () {
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [
-				{
-					message: 'Unexpected token: Expected "read"',
-					position: { row: 0, col: 5 },
-				},
-				{
-					message: 'Unexpected end of input: Expected "write"',
-					position: { row: 0, col: 7 },
-				}
+				error(`Unexpected token: Expected "read"`, 0, 5, 0, 6),
+				error(`Unexpected end of input: Expected "write"`, 0, 7, 0, 7)
 			];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"{}"`, function () {
@@ -1885,21 +1872,11 @@ describe('Parser Error Checker', function () {
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [
-				{
-					message: `Unexpected token: Missing program name`,
-					position: { row: 0, col: 0 }
-				},
-				{
-					message: `Unexpected token: Expected "read"`,
-					position: { row: 0, col: 0 }
-				},
-				{
-					message: `Unexpected end of input: Expected "write"`,
-					position: { row: 0, col: 2 }
-				}
+				error(`Unexpected token: Missing program name`, 0, 0, 0, 1),
+				error(`Unexpected token: Expected "read"`, 0, 0, 0, 1),
+				error(`Unexpected end of input: Expected "write"`, 0, 2, 0, 2)
 			];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read"`, function () {
@@ -1916,12 +1893,10 @@ describe('Parser Error Checker', function () {
 				output: null,
 				body: [],
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Missing input variable',
-				position: { row: 0, col: 9 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [
+				error(`Unexpected end of input: Missing input variable`, 0, 9, 0, 9)
+			];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read X {"`, function () {
@@ -1938,12 +1913,8 @@ describe('Parser Error Checker', function () {
 				output: null,
 				body: [],
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Expected "}"',
-				position: { row: 0, col: 13 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [error(`Unexpected end of input: Expected "}"`, 0, 13, 0, 13)];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`no closing bracket onwards`, function () {
@@ -1968,12 +1939,8 @@ describe('Parser Error Checker', function () {
 					}
 				],
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Expected one of ";", "}"',
-				position: { row: 1, col: 8 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [error(`Unexpected end of input: Expected one of ";", "}"`, 1, 8, 1, 8)];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read {}"`, function () {
@@ -1991,17 +1958,10 @@ describe('Parser Error Checker', function () {
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [
-				{
-					message: 'Unexpected token "{": Missing input variable',
-					position: { row: 0, col: 10 }
-				},
-				{
-					message: 'Unexpected end of input: Expected "write"',
-					position: { row: 0, col: 12 }
-				}
+				error(`Unexpected token "{": Missing input variable`, 0, 10, 0, 11),
+				error(`Unexpected end of input: Expected "write"`, 0, 12, 0, 12)
 			];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read X {}"`, function () {
@@ -2019,13 +1979,9 @@ describe('Parser Error Checker', function () {
 				output: null,
 			};
 			const expectedErrors: ErrorType[] = [
-				{
-					message: 'Unexpected end of input: Expected "write"',
-					position: { row: 0, col: 14 },
-				},
+				error(`Unexpected end of input: Expected "write"`, 0, 14, 0, 14),
 			];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read X {} write"`, function () {
@@ -2042,13 +1998,11 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: null,
 			};
-			const expectedErrors: ErrorType[] = [{
-				//TODO: Remove quotes from type errors
-				message: 'Unexpected end of input: Expected "identifier"',
-				position: { row: 0, col: 20 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			//TODO: Remove quotes from type errors
+			const expectedErrors: ErrorType[] = [
+				error(`Unexpected end of input: Expected "identifier"`, 0, 20, 0, 20)
+			];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read X {} X"`, function () {
@@ -2066,18 +2020,11 @@ describe('Parser Error Checker', function () {
 				output: idnt('X', 0, 15),
 			};
 			const expectedErrors: ErrorType[] = [
-				{
-					message: `Unexpected token "X": Expected "write"`,
-					position: { row: 0, col: 15 }
-				},
+				error(`Unexpected token "X": Expected "write"`, 0, 15, 0, 16),
 				//TODO: Should this have a separate error message for missing output variable?
-				{
-					message: 'Unexpected end of input: Expected "identifier"',
-					position: { row: 0, col: 16 }
-				}
+				error(`Unexpected end of input: Expected "identifier"`, 0, 16, 0, 16)
 			];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name X {} write X"`, function () {
@@ -2094,12 +2041,10 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: idnt('X', 0, 16),
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected token "X": Expected "read"',
-				position: { row: 0, col: 5 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [
+				error(`Unexpected token "X": Expected "read"`, 0, 5, 0, 6)
+			];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"name read X {} write"`, function () {
@@ -2116,12 +2061,10 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: null,
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected end of input: Expected "identifier"',
-				position: { row: 0, col: 20 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [
+				error(`Unexpected end of input: Expected "identifier"`, 0, 20, 0, 20)
+			];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 
 		it(`"read X {} write X"`, function () {
@@ -2138,12 +2081,8 @@ describe('Parser Error Checker', function () {
 				body: [],
 				output: idnt('X', 0, 16),
 			};
-			const expectedErrors: ErrorType[] = [{
-				message: 'Unexpected token: Missing program name',
-				position: { row: 0, col: 0 },
-			}];
-			expect(res[0]).to.deep.equal(expectedAst);
-			expect(res[1]).to.deep.equal(expectedErrors);
+			const expectedErrors: ErrorType[] = [error(`Unexpected token: Missing program name`, 0, 0, 0, 4)];
+			expect(res).to.deep.equal([expectedAst, expectedErrors]);
 		});
 	});
 
@@ -2355,7 +2294,7 @@ describe('Parser Error Checker', function () {
 				'} write Y'
 			);
 			let errors: ErrorType[] = [
-				error(`Switch cases may not have empty bodies`, 2, 12)
+				error(`Switch cases may not have empty bodies`, 2, 12, 2, 13)
 			];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
@@ -2406,9 +2345,9 @@ describe('Parser Error Checker', function () {
 				'    default:\n' +
 				'  }\n' +
 				'} write Y'
-			);
+			);``
 			let errors: ErrorType[] = [
-				error(`Switch cases may not have empty bodies`, 4, 11)
+				error(`Switch cases may not have empty bodies`, 4, 11, 4, 12)
 			];
 			expect(parser(tokens)).to.deep.equal([
 				expected,
@@ -2470,7 +2409,7 @@ describe('Parser Error Checker', function () {
 				'} write Y'
 			);
 			let errors: ErrorType[] = [
-				error(`The 'default' case should be the last case in the block`, 4, 4)
+				error(`The 'default' case should be the last case in the block`, 4, 4, 4, 8)
 			];
 			expect(parser(tokens)).to.deep.equal([
 				expected,

@@ -111,7 +111,7 @@ describe('Lexer', function () {
 							[
 								isPure ? ukwn(atom, 0, 0) : e_sym(atom, 0, 0)
 							],
-							isPure ? [error(`Unknown token "${atom}"`, 0, 0)] : []
+							isPure ? [error(`Unknown token "${atom}"`, 0, 0, 0, atom.length)] : []
 						]);
 					});
 				}
@@ -201,7 +201,7 @@ describe('Lexer', function () {
 									ukwn(c, 0, i)
 								),
 								numSt.split('').map((c, i) =>
-									error(`Unknown token "${c}"`, 0, i)
+									error(`Unknown token "${c}"`, 0, i, 0, i + 1)
 								)
 							]);
 						});
@@ -231,7 +231,7 @@ describe('Lexer', function () {
 						ukwn(atom, 0, 0)
 					],
 					[
-						error(`Unknown token "${atom}"`, 0, 0)
+						error(`Unknown token "${atom}"`, 0, 0, 0, atom.length)
 					]
 				]);
 			});
@@ -248,9 +248,9 @@ describe('Lexer', function () {
 					ukwn('#', 0, 13),
 				],
 				[
-					error(`Unknown token "-"`, 0, 5),
-					error(`Unknown token "+"`, 0, 6),
-					error(`Unknown token "#"`, 0, 13),
+					error(`Unknown token "-"`, 0, 5, 0, 6),
+					error(`Unknown token "+"`, 0, 6, 0, 7),
+					error(`Unknown token "#"`, 0, 13, 0, 14),
 				]
 			]);
 		});

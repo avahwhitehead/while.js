@@ -74,15 +74,15 @@ class ErrorManager extends BaseErrorManager {
 		super();
 	}
 
-	public unexpectedToken(position: Position, actual?: string, ...expected: string[]): this {
-		return this.unexpectedValue(position, 'token', actual, ...expected);
+	public unexpectedToken(position: Position, endPos: Position, actual?: string, ...expected: string[]): this {
+		return this.unexpectedValue(position, endPos, 'token', actual, ...expected);
 	}
 
-	public unexpectedEOI(position: Position, ...expected: string[]): this {
-		return this.unexpectedValue(position, 'end of input', undefined, ...expected);
+	public unexpectedEOI(position: Position, endPos: Position, ...expected: string[]): this {
+		return this.unexpectedValue(position, endPos, 'end of input', undefined, ...expected);
 	}
 
-	public unexpectedValue(position: Position, type: string = 'token', actual?: string, ...expected: string[]): this {
+	public unexpectedValue(position: Position, endPos: Position, type: string = 'token', actual?: string, ...expected: string[]): this {
 		let msg = `Unexpected ${type}`;
 		if (expected.length === 0) {
 			if (actual) msg += `: "${actual}"`;
@@ -91,7 +91,7 @@ class ErrorManager extends BaseErrorManager {
 			if (expected.length === 1) msg += `: Expected "${expected[0]}"`;
 			else msg += `: Expected one of "${expected.join(`", "`)}"`;
 		}
-		return this.addError(position, msg);
+		return this.addError(position, msg, endPos);
 	}
 }
 
@@ -103,6 +103,7 @@ class StateManager {
 	private readonly _errorManager: ErrorManager;
 	private readonly _tokens: WHILE_TOKEN_EXTD[];
 	private _pos: Position;
+	private _endPos: Position;
 	private _lastToken: WHILE_TOKEN_EXTD|undefined;
 
 	public constructor(tokens: WHILE_TOKEN_EXTD[]) {
@@ -110,6 +111,10 @@ class StateManager {
 		this._tokens = tokens;
 		this._lastToken = undefined;
 		this._pos = {
+			col: 0,
+			row: 0,
+		};
+		this._endPos = {
 			col: 0,
 			row: 0,
 		};
@@ -207,7 +212,7 @@ class StateManager {
 	 * @param msg	The error message
 	 */
 	public addError(msg: string): this {
-		this._errorManager.addError(this._pos, msg);
+		this._errorManager.addError(this._pos, msg, this._endPos);
 		return this;
 	}
 
@@ -221,7 +226,7 @@ class StateManager {
 	public unexpectedValue(type: string|number, actual?: string|number, ...expected: string[]): this {
 		if (typeof type === 'number') type = type.toString();
 		if (typeof actual === 'number') actual = actual.toString();
-		this._errorManager.unexpectedValue(this._pos, type, actual, ...expected);
+		this._errorManager.unexpectedValue(this._pos, this._endPos, type, actual, ...expected);
 		return this;
 	}
 
@@ -232,7 +237,7 @@ class StateManager {
 	 */
 	public unexpectedToken(actual?: string|number, ...expected: string[]): this {
 		if (typeof actual === 'number') actual = actual.toString();
-		this._errorManager.unexpectedToken(this._pos, actual, ...expected);
+		this._errorManager.unexpectedToken(this._pos, this._endPos, actual, ...expected);
 		return this;
 	}
 
@@ -241,20 +246,20 @@ class StateManager {
 	 * @param expected	The expected token(s)
 	 */
 	public unexpectedEOI(...expected: string[]): this {
-		this._errorManager.unexpectedEOI(this._pos, ...expected);
+		this._errorManager.unexpectedEOI(this._pos, this._endPos, ...expected);
 		return this;
 	}
 
 	public unexpectedEOICustom(msg: string) {
-		this.errorManager.addError(this._pos, `Unexpected end of input: ${msg}`);
+		this.errorManager.addError(this._pos, `Unexpected end of input: ${msg}`, this._endPos);
 	}
 
 	public unexpectedTokenCustom(actual: string|number|undefined, msg: string) {
 		if (typeof actual === 'number') actual = actual.toString();
 		if (actual) {
-			this.errorManager.addError(this._pos, `Unexpected token "${actual}": ${msg}`);
+			this.errorManager.addError(this._pos, `Unexpected token "${actual}": ${msg}`, this._endPos);
 		} else {
-			this.errorManager.addError(this._pos, `Unexpected token: ${msg}`);
+			this.errorManager.addError(this._pos, `Unexpected token: ${msg}`, this._endPos);
 		}
 	}
 
@@ -269,22 +274,13 @@ class StateManager {
 		const first = this._tokens.shift() || null;
 		//Increment the position counter
 		if (first !== null) {
+			//Move to the start of the next token
 			this._pos = {...first.pos};
+			this._endPos = {...first.endPos};
 			this._lastToken = first;
 		} else {
-			if (this._lastToken === undefined) {
-				incrementPos(this._pos, '');
-			} else if (typeof this._lastToken.value === 'number') {
-				incrementPos(
-					this._pos,
-					this._lastToken.value.toString()
-				);
-			} else {
-				incrementPos(
-					this._pos,
-					this._lastToken.value
-				);
-			}
+			//Move to the end of the last token
+			this._pos = {...this._endPos};
 		}
 		//Return the token
 		return first;
@@ -943,10 +939,7 @@ function _readSwitch(state: StateManager, opts: IntParserOpts): [ParseStatus, AS
 		//The default case should be the last in the switch
 		if (dflt !== null) {
 			status = ParseStatus.ERROR;
-			state.errorManager.addError(
-				next.pos,
-				`The 'default' case should be the last case in the block`
-			)
+			state.errorManager.addError(next.pos, `The 'default' case should be the last case in the block`, next.endPos);
 		}
 
 		//Read the next case statement and body from the token list
@@ -1191,7 +1184,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 			state.unexpectedEOICustom(`Missing input variable`);
 			return [ParseStatus.EOI, null];
 		} else if (input.value === TKN_BLOCK_OPN) {
-			state.errorManager.addError(input.pos, `Unexpected token "${input.value}": Missing input variable`);
+			state.errorManager.addError(input.pos, `Unexpected token "${input.value}": Missing input variable`, input.endPos);
 			return [ParseStatus.ERROR, null];
 		} else if (input.type === 'identifier') {
 			if (!_isValidVariableName(input.value, opts)) {
@@ -1224,7 +1217,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 			return _readInput(state, opts);
 		} else if (read.value === TKN_BLOCK_OPN) {
 			//The program opens directly onto the block
-			state.errorManager.unexpectedToken(read.pos, undefined, TKN_READ);
+			state.errorManager.unexpectedToken(read.pos, read.endPos, undefined, TKN_READ);
 			return [ParseStatus.ERROR, null];
 		} else {
 			state.next();
@@ -1245,7 +1238,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 	} else if (name.value === TKN_READ) {
 		state.next();
 		//The program name was missed
-		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name');
+		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name', name.endPos);
 		let [inputStatus, input] = _readInput(state, opts);
 		if (inputStatus === ParseStatus.OK) {
 			return [ParseStatus.OK, null, input];
@@ -1254,8 +1247,8 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		}
 	} else if (name.value === TKN_BLOCK_OPN) {
 		//The program opens directly onto the block
-		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name');
-		state.errorManager.unexpectedToken(name.pos, undefined, TKN_READ);
+		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name', name.endPos);
+		state.errorManager.unexpectedToken(name.pos, name.endPos, undefined, TKN_READ);
 		return [ParseStatus.ERROR, null, null];
 	} else {
 		state.next();

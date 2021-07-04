@@ -31,6 +31,7 @@ export interface SYMBOL_TYPE {
 	type: 'symbol';
 	value: SYMBOL_TOKEN;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -41,6 +42,7 @@ export interface EXPR_TYPE {
 	type: 'expression';
 	value: EXPR_TOKEN;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -51,6 +53,7 @@ export interface OP_TYPE {
 	type: 'operation';
 	value: OP_TOKEN;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -61,6 +64,7 @@ export interface IDENT_TYPE {
 	type: 'identifier';
 	value: string;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -71,6 +75,7 @@ export interface UNKNOWN_TYPE {
 	type: 'unknown';
 	value: string;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 

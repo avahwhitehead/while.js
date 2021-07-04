@@ -6,6 +6,7 @@ import Position from "../types/position";
 export type ErrorType = {
 	position: Position,
 	message: string,
+	endPos?: Position,
 }
 
 /**
@@ -28,13 +29,22 @@ export class ErrorManager {
 	/**
 	 * Add an error to the list
 	 * @param position	The position of the error in the program
+	 * @param endPos	The end position of the error in the program
 	 * @param message	Message describing the error
 	 */
-	public addError(position: Position, message: string): this {
-		this._errors.push({
-			message,
-			position: {...position},
-		});
+	public addError(position: Position, message: string, endPos?: Position): this {
+		if (endPos === undefined) {
+			this._errors.push({
+				message,
+				position: {...position}
+			});
+		} else {
+			this._errors.push({
+				message,
+				position: {...position},
+				endPos: {...endPos}
+			});
+		}
 		return this;
 	}
 }

@@ -31,6 +31,7 @@ export interface SYMBOL_TYPE_EXTD {
 	type: 'symbol';
 	value: SYMBOL_TOKEN_EXTD;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -41,6 +42,7 @@ export interface EXPR_TYPE_EXTD {
 	type: 'expression';
 	value: EXPR_TOKEN_EXTD;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -51,6 +53,7 @@ export interface OP_TYPE_EXTD {
 	type: 'operation';
 	value: OP_TOKEN_EXTD;
 	pos: Position;
+	endPos: Position;
 	length: number;
 }
 
@@ -58,6 +61,7 @@ export interface NUMBER_TYPE {
 	type: 'number',
 	value: number,
 	pos: Position,
+	endPos: Position,
 	length: number;
 }
 

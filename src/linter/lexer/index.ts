@@ -124,11 +124,15 @@ function read_next_token(program: string, pos: Position, pureOnly: boolean = fal
 	for (let sym of pureOnly ? SYMBOL_LIST : SYMBOL_LIST_EXTD) {
 		//Check each symbol against the start of the program string
 		if (program.substr(0, sym.length) === sym) {
+			let endPos: Position = {...pos};
+			incrementPos(endPos, sym);
+
 			//Return the symbol token if a match is found
 			return {
 				type: 'symbol',
 				value: sym,
-				pos: {...pos},
+				pos,
+				endPos,
 				length: sym.length,
 			};
 		}
@@ -140,7 +144,6 @@ function read_next_token(program: string, pos: Position, pureOnly: boolean = fal
 	if (expr === null) {
 		if (pureOnly) return null;
 		//Attempt to read a number instead
-		// let expr: number|null;
 		expr = read_number(program);
 		if (expr === null) return null;
 		return {
@@ -148,27 +151,37 @@ function read_next_token(program: string, pos: Position, pureOnly: boolean = fal
 			value: Number.parseInt(expr),
 			length: expr.length,
 			pos,
+			endPos: {
+				row: pos.row,
+				col: pos.col + expr.length,
+			},
 		};
 	}
 
 	//See if the identifier is a known value
 	for (let tkn of pureOnly ? EXPR_LIST : EXPR_LIST_EXTD) {
 		if (expr === tkn) {
+			let endPos: Position = {...pos};
+			incrementPos(endPos, tkn);
 			return {
 				type: 'expression',
 				value: tkn,
 				length: tkn.length,
 				pos,
+				endPos,
 			};
 		}
 	}
 	for (let tkn of pureOnly ? OP_LIST : OP_LIST_EXTD) {
 		if (expr === tkn) {
+			let endPos: Position = {...pos};
+			incrementPos(endPos, tkn);
 			return {
 				type: 'operation',
 				value: tkn,
 				length: tkn.length,
 				pos,
+				endPos,
 			};
 		}
 	}
@@ -178,6 +191,10 @@ function read_next_token(program: string, pos: Position, pureOnly: boolean = fal
 		value: expr,
 		length: expr.length,
 		pos,
+		endPos: {
+			row: pos.row,
+			col: pos.col + expr.length
+		},
 	};
 }
 
@@ -241,22 +258,29 @@ export default function lexer(program: string, props?: LexerOptions): [(WHILE_TO
 		if (token === null) {
 			//Return the first character from the program string
 			let next = program.charAt(0);
-			//Add an error at the current position
-			errorManager.addError(pos, `Unknown token "${next}"`);
 			//Mark unrecognised tokens
 			token = {
 				type: 'unknown',
 				value: next,
 				pos: {...pos},
+				endPos: {
+					row: pos.row,
+					col: pos.col + next.length,
+				},
 				length: next.length,
 			};
+			//Add an error at the current position
+			errorManager.addError(
+				pos,
+				`Unknown token "${next}"`,
+				token.endPos
+			);
 		}
 		//Save the token to the list
 		res.push(token);
 		//Remove the token from the start of the program
 		if (typeof token.value === 'number') pos.col += token.length;
 		else incrementPos(pos, token.value);
-		// incrementPos(pos, program.substring(0, token.length));
 		program = program.substring(token.length);
 	}
 	//Return the produced token list and any created errors

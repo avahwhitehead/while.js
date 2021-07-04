@@ -87,11 +87,13 @@ export function tree(t: BinaryTree): AST_TREE {
 export function sym(t: SYMBOL_TOKEN, pos: Position): SYMBOL_TYPE;
 export function sym(t: SYMBOL_TOKEN, pos: number, col: number): SYMBOL_TYPE;
 export function sym(t: SYMBOL_TOKEN, pos: Position|number, col?: number): SYMBOL_TYPE {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'symbol',
 		value: t,
-		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -99,11 +101,14 @@ export function sym(t: SYMBOL_TOKEN, pos: Position|number, col?: number): SYMBOL
 export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: Position): SYMBOL_TYPE_EXTD;
 export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: number, col: number): SYMBOL_TYPE_EXTD;
 export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: Position|number, col?: number): SYMBOL_TYPE_EXTD {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'symbol',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -111,11 +116,14 @@ export function e_sym(t: SYMBOL_TOKEN_EXTD, pos: Position|number, col?: number):
 export function expr(t: EXPR_TOKEN, pos: Position): EXPR_TYPE;
 export function expr(t: EXPR_TOKEN, pos: number, col: number): EXPR_TYPE;
 export function expr(t: EXPR_TOKEN, pos: Position|number, col?: number): EXPR_TYPE {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'expression',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -123,11 +131,14 @@ export function expr(t: EXPR_TOKEN, pos: Position|number, col?: number): EXPR_TY
 export function e_expr(t: EXPR_TOKEN_EXTD, pos: Position): EXPR_TYPE_EXTD;
 export function e_expr(t: EXPR_TOKEN_EXTD, pos: number, col: number): EXPR_TYPE_EXTD;
 export function e_expr(t: EXPR_TOKEN_EXTD, pos: Position|number, col?: number): EXPR_TYPE_EXTD {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'expression',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -135,11 +146,14 @@ export function e_expr(t: EXPR_TOKEN_EXTD, pos: Position|number, col?: number): 
 export function opr(t: OP_TOKEN, pos: Position): OP_TYPE;
 export function opr(t: OP_TOKEN, pos: number, col: number): OP_TYPE;
 export function opr(t: OP_TOKEN, pos: Position|number, col?: number): OP_TYPE {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'operation',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -147,11 +161,14 @@ export function opr(t: OP_TOKEN, pos: Position|number, col?: number): OP_TYPE {
 export function e_opr(t: OP_TOKEN_EXTD, pos: Position): OP_TYPE_EXTD;
 export function e_opr(t: OP_TOKEN_EXTD, pos: number, col: number): OP_TYPE_EXTD;
 export function e_opr(t: OP_TOKEN_EXTD, pos: Position|number, col?: number): OP_TYPE_EXTD {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'operation',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -159,11 +176,14 @@ export function e_opr(t: OP_TOKEN_EXTD, pos: Position|number, col?: number): OP_
 export function idnt(t: string, pos: Position): IDENT_TYPE;
 export function idnt(t: string, pos: number, col: number): IDENT_TYPE;
 export function idnt(t: string, pos: Position|number, col?: number): IDENT_TYPE {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'identifier',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length
 	};
 }
@@ -171,11 +191,14 @@ export function idnt(t: string, pos: Position|number, col?: number): IDENT_TYPE 
 export function ukwn(t: string, pos: Position): UNKNOWN_TYPE;
 export function ukwn(t: string, pos: number, col: number): UNKNOWN_TYPE;
 export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYPE {
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + t.length };
 	return {
 		type: 'unknown',
 		value: t,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length: t.length,
 	};
 }
@@ -187,22 +210,54 @@ export function nmbr(v: number, pos: Position|number, col?: number): NUMBER_TYPE
 	if (v === 0) length = 1;
 	else length = Math.floor(Math.log10(v)) + 1;
 
+	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
+	let endPos: Position = { row: startPos.row, col: startPos.col + length };
 	return {
 		type: 'number',
 		value: v,
 		//@ts-ignore
-		pos: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		pos: startPos,
+		endPos,
 		length
 	};
 }
 
 
-export function error(msg: string, pos: Position): ErrorType;
+export function error(msg: string, pos: Position, endPos?: Position): ErrorType;
 export function error(msg: string, pos: number, col: number): ErrorType;
-export function error(msg: string, pos: Position|number, col?: number): ErrorType {
+export function error(msg: string, pos: number, col: number, endRow: number, endCol: number): ErrorType;
+export function error(msg: string, pos: Position|number, col?: number|Position, endRow?: number, endCol?: number): ErrorType {
+	let start: Position;
+	if (typeof pos === 'number') {
+		start = {
+			row: pos,
+			col: col as number,
+		};
+	} else {
+		start = pos;
+	}
+
+	let end: Position|undefined = undefined;
+	if (typeof col === "number") {
+		if (endRow !== undefined) {
+			end = {
+				row: endRow,
+				col: endCol as number,
+			};
+		}
+	} else {
+		end = col;
+	}
+
+	if (end === undefined) {
+		return {
+			message: msg,
+			position: start,
+		};
+	}
 	return {
 		message: msg,
-		//@ts-ignore
-		position: (typeof pos === 'number') ? { row: pos, col: col } : pos,
+		position: start,
+		endPos: end,
 	};
 }
