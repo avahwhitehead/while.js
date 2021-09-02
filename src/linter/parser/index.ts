@@ -1,5 +1,6 @@
 import {
 	IDENT_TYPE,
+	OP_TYPE,
 	TKN_ASSGN,
 	TKN_BLOCK_CLS,
 	TKN_BLOCK_OPN,
@@ -16,36 +17,42 @@ import {
 	WHILE_TOKEN
 } from "../../types/tokens";
 import {
-	AST_SWITCH_CASE_PARTIAL,
 	AST_CMD,
 	AST_CMD_PARTIAL,
-	AST_SWITCH_DEFAULT_PARTIAL,
 	AST_EXPR,
 	AST_EXPR_PARTIAL,
-	AST_PROG,
-	AST_PROG_PARTIAL,
-	AST_SWITCH_CASE,
-	AST_SWITCH_DEFAULT,
-	AST_SWITCH,
-	AST_SWITCH_PARTIAL,
+	AST_EXPR_TREE,
+	AST_EXPR_TREE_PARTIAL,
+	AST_IDENT_NAME,
 	AST_MACRO,
 	AST_MACRO_PARTIAL,
-	AST_EXPR_TREE,
-	AST_EXPR_TREE_PARTIAL
+	AST_OP_TOKEN,
+	AST_PROG,
+	AST_PROG_PARTIAL,
+	AST_SWITCH,
+	AST_SWITCH_CASE,
+	AST_SWITCH_CASE_PARTIAL,
+	AST_SWITCH_DEFAULT,
+	AST_SWITCH_DEFAULT_PARTIAL,
+	AST_SWITCH_PARTIAL,
 } from "../../types/ast";
-import Position, { incrementPos } from "../../types/position";
+import Position from "../../types/position";
 import { ErrorManager as BaseErrorManager, ErrorType } from "../../utils/errorManager";
 import {
+	OP_TYPE_EXTD,
 	TKN_CASE,
-	TKN_COLON, TKN_COMMA,
+	TKN_COLON,
+	TKN_COMMA,
 	TKN_DEFAULT,
 	TKN_DOT,
-	TKN_EQL, TKN_FALSE,
+	TKN_EQL,
+	TKN_FALSE,
 	TKN_LIST_CLS,
 	TKN_LIST_OPN,
 	TKN_MCRO_CLS,
 	TKN_MCRO_OPN,
-	TKN_SWITCH, TKN_TRUE,
+	TKN_SWITCH,
+	TKN_TRUE,
 	WHILE_TOKEN_EXTD
 } from "../../types/extendedTokens";
 import { BinaryTree } from "../../types/Trees";
@@ -57,6 +64,28 @@ export interface ParserOpts {
 
 interface IntParserOpts {
 	pureOnly: boolean
+}
+
+/**
+ * Convert an identifier token ({@link IDENT_TYPE}) to an AST identifier node.
+ * @param ident	The identifier token to convert
+ */
+function astIdent(ident: IDENT_TYPE): AST_IDENT_NAME {
+	return {
+		type: 'identName',
+		value: ident.value,
+	}
+}
+
+/**
+ * Convert an operation token of type {@link OP_TYPE_EXTD} (a 'hd'/'cons'/... token) to an AST operation token node.
+ * @param op	The operation token to convert
+ */
+function astOp(op: OP_TYPE|OP_TYPE_EXTD): AST_OP_TOKEN {
+	return {
+		type: 'opToken',
+		value: op.value,
+	}
 }
 
 /**
@@ -343,7 +372,7 @@ function _isValidVariableName(name: string, opts: IntParserOpts): boolean {
  */
 function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
 	function _readExprInt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_EXPR|AST_EXPR_PARTIAL|null] {
-		let first = state.next();
+		let first: WHILE_TOKEN_EXTD|null = state.next();
 		//Handle early end of input
 		if (first === null) return [ParseStatus.EOI, null];
 
@@ -398,15 +427,15 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 					return [exprState, {
 						type: 'operation',
 						complete: false,
-						op: first,
+						op: astOp(first),
 						args: [arg]
 					}];
-				} else if (arg.type === 'identifier' || arg.complete) {
+				} else if (arg.type === 'identName' || arg.complete) {
 					//The argument is an identifier or complete operation
 					return [exprState, {
 						type: 'operation',
 						complete: true,
-						op: first,
+						op: astOp(first),
 						args: [arg]
 					}];
 				} else {
@@ -414,7 +443,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 					return [exprState, {
 						type: 'operation',
 						complete: false,
-						op: first,
+						op: astOp(first),
 						args: [arg]
 					}];
 				}
@@ -429,13 +458,13 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 			if (rightStatus !== ParseStatus.OK) status = rightStatus;
 
 			if (!left || !right
-				|| (left.type !== 'identifier' && !left.complete)
-				|| (right.type !== 'identifier' && !right.complete)
+				|| (left.type !== 'identName' && !left.complete)
+				|| (right.type !== 'identName' && !right.complete)
 			) {
 				return [status, {
 					type: 'operation',
 					complete: false,
-					op: first,
+					op: astOp(first),
 					args: [
 						left,
 						right
@@ -445,7 +474,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 				return [status, {
 					type: 'operation',
 					complete: true,
-					op: first,
+					op: astOp(first),
 					args: [
 						left,
 						right
@@ -460,7 +489,14 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 					tree:_numToTree(0)
 				}];
 			}
-			return [ParseStatus.OK, first];
+			return [
+				ParseStatus.OK,
+				astIdent(first),
+			]
+			// return [ParseStatus.OK, {
+			// 	type: 'identName',
+			// 	value: first.value
+			// }];
 		} else {
 			if (!opts.pureOnly) {
 				if (first.type === 'number') {
@@ -874,7 +910,7 @@ function _readCase(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 
 		//Check the expression was parsed correctly
 		status = exprStatus;
-		if (expr === null || expr.type !== 'identifier' && expr.type !== 'tree' && !expr.complete) {
+		if (expr === null || expr.type !== 'identName' && expr.type !== 'tree' && !expr.complete) {
 			status = ParseStatus.ERROR;
 		}
 
@@ -1026,7 +1062,7 @@ function _readStmt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		//And the 'else' body
 		let [elseState, elseBlock]: [ParseStatus, (AST_CMD|AST_CMD_PARTIAL|null)[]] = _readElse(state, opts);
 		//Return success if all the segments were parsed correctly
-		if (cond !== null && (cond.type === 'identifier' || cond.type === 'tree' || cond.complete) && condStatus === ParseStatus.OK && ifState === ParseStatus.OK && elseState === ParseStatus.OK) {
+		if (cond !== null && (cond.type === 'identName' || cond.type === 'tree' || cond.complete) && condStatus === ParseStatus.OK && ifState === ParseStatus.OK && elseState === ParseStatus.OK) {
 			//Return the produced AST node
 			return [
 				ParseStatus.OK,
@@ -1097,13 +1133,13 @@ function _readStmt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 		if (valStatus === ParseStatus.EOI) return [ParseStatus.EOI, null];
 		if (valStatus !== ParseStatus.OK) status = valStatus;
 
-		if (isVarValid && status === ParseStatus.OK && val !== null && (val.type === 'identifier' || val.complete)) {
+		if (isVarValid && status === ParseStatus.OK && val !== null && (val.type === 'identName' || val.complete)) {
 			return [
 				ParseStatus.OK,
 				{
 					type: 'assign',
 					complete: true,
-					ident: first,
+					ident: astIdent(first),
 					arg: val
 				}
 			];
@@ -1113,7 +1149,7 @@ function _readStmt(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_
 			{
 				type: 'assign',
 				complete: false,
-				ident: first,
+				ident: astIdent(first),
 				arg: val
 			}
 		];
@@ -1172,12 +1208,12 @@ function _readBlock(state: StateManager, opts: IntParserOpts): [ParseStatus, (AS
  * Returns a list containing the parser segment status, the program name, and the input variable.
  * @param state		The parser state manager object
  * @param opts		Configuration options object
- * @returns {[ParseStatus.OK, IDENT_TYPE, IDENT_TYPE]}			The program name, and input variable
- * @returns {[ParseStatus.ERROR, IDENT_TYPE|null, IDENT_TYPE|null]}	The program name and input variable if readable, {@code null} for each otherwise
- * @returns {[ParseStatus.EOI, IDENT_TYPE|null, IDENT_TYPE|null]}	The program name and input variable if readable, {@code null} for each otherwise
+ * @returns {[ParseStatus.OK, AST_IDENT_NAME, AST_IDENT_NAME]}			The program name, and input variable
+ * @returns {[ParseStatus.ERROR, AST_IDENT_NAME|null, AST_IDENT_NAME|null]}	The program name and input variable if readable, {@code null} for each otherwise
+ * @returns {[ParseStatus.EOI, AST_IDENT_NAME|null, AST_IDENT_NAME|null]}	The program name and input variable if readable, {@code null} for each otherwise
  */
-function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStatus, IDENT_TYPE|null, IDENT_TYPE|null] {
-	function _readInput(state: StateManager, opts: IntParserOpts): [ParseStatus, IDENT_TYPE|null] {
+function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_IDENT_NAME|null, AST_IDENT_NAME|null] {
+	function _readInput(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_IDENT_NAME|null] {
 		const input: WHILE_TOKEN_EXTD|null = state.peek();
 		if (input === null) {
 			state.next();
@@ -1191,11 +1227,11 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 				//Invalid variable name
 				state.addError(`Not a valid variable name`);
 				state.next();
-				return [ParseStatus.ERROR, input];
+				return [ParseStatus.ERROR, astIdent(input)];
 			}
 			//Acceptable token
 			state.next();
-			return [ParseStatus.OK, input];
+			return [ParseStatus.OK, astIdent(input)];
 		} else {
 			state.next();
 			//Not an identifier
@@ -1204,7 +1240,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		}
 	}
 
-	function _readRead(state: StateManager, opts: IntParserOpts): [ParseStatus, IDENT_TYPE|null] {
+	function _readRead(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_IDENT_NAME|null] {
 		//"read"
 		const read: WHILE_TOKEN_EXTD|null = state.peek();
 		if (read === null) {
@@ -1224,7 +1260,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 			state.unexpectedToken(read.value, TKN_READ);
 			return [
 				ParseStatus.ERROR,
-				(read.type === 'identifier') ? read : null
+				(read.type === 'identifier') ? astIdent(read) : null
 			];
 		}
 	}
@@ -1239,7 +1275,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		state.next();
 		//The program name was missed
 		state.errorManager.addError(name.pos, 'Unexpected token: Missing program name', name.endPos);
-		let [inputStatus, input] = _readInput(state, opts);
+		let [inputStatus, input]: [ParseStatus, AST_IDENT_NAME|null] = _readInput(state, opts);
 		if (inputStatus === ParseStatus.OK) {
 			return [ParseStatus.OK, null, input];
 		} else {
@@ -1252,7 +1288,7 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		return [ParseStatus.ERROR, null, null];
 	} else {
 		state.next();
-		let [inputStatus, inputVar]: [ParseStatus, IDENT_TYPE|null] = _readRead(state, opts);
+		let [inputStatus, inputVar]: [ParseStatus, AST_IDENT_NAME|null] = _readRead(state, opts);
 		//A program name wasn't provided
 		if (name.type !== 'identifier') {
 			state.unexpectedValue('type', name.type, 'identifier');
@@ -1260,9 +1296,9 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
 		}
 		if (inputStatus === ParseStatus.OK) {
 			//Acceptable token
-			return [ParseStatus.OK, name as IDENT_TYPE, inputVar];
+			return [ParseStatus.OK, astIdent(name as IDENT_TYPE), inputVar];
 		}
-		return [inputStatus, name as IDENT_TYPE, inputVar];
+		return [inputStatus, astIdent(name as IDENT_TYPE), inputVar];
 	}
 }
 
@@ -1271,13 +1307,13 @@ function _readProgramIntro(state: StateManager, opts: IntParserOpts): [ParseStat
  * Returns a list containing the parser segment status, and the output variable.
  * @param state		The parser state manager object
  * @param opts		Configuration options object
- * @returns {[ParseStatus.OK, IDENT_TYPE]}			The output variable
- * @returns {[ParseStatus.ERROR, IDENT_TYPE|null]}	The output variable, if readable, {@code null} otherwise
- * @returns {[ParseStatus.EOI, IDENT_TYPE|null]}	The output variable, if readable, {@code null} otherwise
+ * @returns {[ParseStatus.OK, AST_IDENT_NAME]}			The output variable
+ * @returns {[ParseStatus.ERROR, AST_IDENT_NAME|null]}	The output variable, if readable, {@code null} otherwise
+ * @returns {[ParseStatus.EOI, AST_IDENT_NAME|null]}	The output variable, if readable, {@code null} otherwise
  */
-function _readProgramOutro(state: StateManager, opts: IntParserOpts): [ParseStatus, IDENT_TYPE|null] {
+function _readProgramOutro(state: StateManager, opts: IntParserOpts): [ParseStatus, AST_IDENT_NAME|null] {
 	let err: ParseStatus = ParseStatus.OK;
-	let output: IDENT_TYPE|null = null;
+	let output: AST_IDENT_NAME|null = null;
 
 	//read the "write" token
 	let write: WHILE_TOKEN_EXTD|null = state.next();
@@ -1291,7 +1327,7 @@ function _readProgramOutro(state: StateManager, opts: IntParserOpts): [ParseStat
 		//Assume the "write" token was missed and the output variable was written directly
 		state.unexpectedToken(write.value, TKN_WRITE);
 		err = ParseStatus.ERROR;
-		output = write;
+		output = astIdent(write);
 	} else {
 		//Unknown token
 		state.unexpectedValue(write.type, write.value, TKN_WRITE);
@@ -1304,7 +1340,7 @@ function _readProgramOutro(state: StateManager, opts: IntParserOpts): [ParseStat
 		state.unexpectedEOI('identifier');
 		err = ParseStatus.EOI;
 	} else if (outputVar.type === 'identifier') {
-		output = outputVar;
+		output = astIdent(outputVar);
 	} else {
 		state.unexpectedTokenCustom(outputVar.value, ` Expected an identifier`);
 		err = ParseStatus.ERROR;
@@ -1330,11 +1366,11 @@ function _readProgram(state: StateManager, opts: IntParserOpts): AST_PROG | AST_
 	let bodyStatus: ParseStatus = ParseStatus.OK;
 	let outputStatus: ParseStatus = ParseStatus.OK;
 	let body: (AST_CMD|AST_CMD_PARTIAL|null)[] = [];
-	let output: IDENT_TYPE|null = null;
+	let output: AST_IDENT_NAME|null = null;
 
 	//Attempt to read the start of the program ("<name> read <in>")
 	//Separate into the program name and input variable name
-	let [progInStatus, name, input]: [ParseStatus, IDENT_TYPE|null, IDENT_TYPE|null] = _readProgramIntro(state, opts);
+	let [progInStatus, name, input]: [ParseStatus, AST_IDENT_NAME|null, AST_IDENT_NAME|null] = _readProgramIntro(state, opts);
 
 	//Don't attempt to parse the program if the input has already ended
 	if (progInStatus !== ParseStatus.EOI) {

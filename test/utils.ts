@@ -1,5 +1,4 @@
-import { BinaryTree } from "../src/types/Trees";
-import { ErrorType } from "../src";
+import { BinaryTree, ErrorType } from "../src";
 import {
 	EXPR_TOKEN,
 	EXPR_TYPE,
@@ -12,8 +11,13 @@ import {
 } from "../src/types/tokens";
 import Position from "../src/types/position";
 import {
-	EXPR_TOKEN_EXTD, EXPR_TYPE_EXTD,
-	NUMBER_TYPE, OP_TOKEN_EXTD, OP_TYPE_EXTD, SYMBOL_TOKEN_EXTD, SYMBOL_TYPE_EXTD,
+	EXPR_TOKEN_EXTD,
+	EXPR_TYPE_EXTD,
+	NUMBER_TYPE,
+	OP_TOKEN_EXTD,
+	OP_TYPE_EXTD,
+	SYMBOL_TOKEN_EXTD,
+	SYMBOL_TYPE_EXTD,
 } from "../src/types/extendedTokens";
 import { AST_TREE } from "../src/types/ast";
 

@@ -1,23 +1,27 @@
-import { IDENT_TYPE } from "./tokens";
-import { OP_TYPE_EXTD } from "./extendedTokens";
+import { OP_TOKEN_EXTD } from "./extendedTokens";
 import { BinaryTree } from "./Trees";
+
+export type AST_IDENT_NAME = {
+	type: 'identName';
+	value: string;
+}
 
 //name read input { ... } write output
 export type AST_PROG = {
 	type: 'program',
 	complete: true,
-	name: IDENT_TYPE,
-	input: IDENT_TYPE,
+	name: AST_IDENT_NAME,
+	input: AST_IDENT_NAME,
 	body: AST_CMD[],
-	output: IDENT_TYPE,
+	output: AST_IDENT_NAME,
 };
 export type AST_PROG_PARTIAL = {
 	type: 'program',
 	complete: false,
-	name: IDENT_TYPE | null,
-	input: IDENT_TYPE | null,
+	name: AST_IDENT_NAME | null,
+	input: AST_IDENT_NAME | null,
 	body: (AST_CMD|AST_CMD_PARTIAL|null)[] | null,
-	output: IDENT_TYPE | null,
+	output: AST_IDENT_NAME | null,
 };
 
 export type AST_OP_EQL = {
@@ -82,20 +86,24 @@ export type AST_MACRO_PARTIAL = {
 };
 
 //cons/hd/tl operations
+export type AST_OP_TOKEN = {
+	type: 'opToken';
+	value: OP_TOKEN_EXTD;
+}
 export type AST_OP = {
 	type: 'operation',
 	complete: true,
-	op: OP_TYPE_EXTD,
+	op: AST_OP_TOKEN,
 	args: AST_EXPR[],
 };
 export type AST_OP_PARTIAL = {
 	type: 'operation',
 	complete: false,
-	op: OP_TYPE_EXTD|null,
+	op: AST_OP_TOKEN|null,
 	args: (AST_EXPR|AST_EXPR_PARTIAL|null)[],
 }
-export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_EXPR_TREE | AST_TREE | AST_MACRO | IDENT_TYPE;
-export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_EXPR_TREE_PARTIAL | AST_TREE_PARTIAL | AST_MACRO_PARTIAL | IDENT_TYPE;
+export type AST_EXPR = AST_OP | AST_OP_EQL | AST_LIST | AST_EXPR_TREE | AST_TREE | AST_MACRO | AST_IDENT_NAME;
+export type AST_EXPR_PARTIAL = AST_OP_PARTIAL | AST_OP_EQL_PARTIAL | AST_LIST_PARTIAL | AST_EXPR_TREE_PARTIAL | AST_TREE_PARTIAL | AST_MACRO_PARTIAL | AST_IDENT_NAME;
 
 //Assignment/If/While operations
 export type AST_IF = {
@@ -167,13 +175,13 @@ export type AST_WHILE_PARTIAL = {
 export type AST_ASGN = {
 	type: 'assign',
 	complete: true,
-	ident: IDENT_TYPE,
+	ident: AST_IDENT_NAME,
 	arg: AST_EXPR,
 }
 export type AST_ASGN_PARTIAL = {
 	type: 'assign',
 	complete: false,
-	ident: IDENT_TYPE|null,
+	ident: AST_IDENT_NAME|null,
 	arg: AST_EXPR|AST_EXPR_PARTIAL|null,
 };
 export type AST_CMD = AST_ASGN | AST_IF | AST_WHILE | AST_SWITCH;

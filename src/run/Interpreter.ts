@@ -1,9 +1,19 @@
-import { AST_ASGN, AST_CMD, AST_EXPR, AST_IF, AST_PROG, AST_PROG_PARTIAL, AST_SWITCH, AST_WHILE } from "../types/ast";
+import {
+	AST_ASGN,
+	AST_CMD,
+	AST_EXPR,
+	AST_IDENT_NAME,
+	AST_IF,
+	AST_OP_TOKEN,
+	AST_PROG,
+	AST_PROG_PARTIAL,
+	AST_SWITCH,
+	AST_WHILE
+} from "../types/ast";
 import { BinaryTree } from "../types/Trees";
 import lexer, { LexerOptions } from "../linter/lexer";
 import parser, { ParserOpts } from "../linter/parser";
 import { ErrorType } from "../utils/errorManager";
-import { OP_TYPE_EXTD } from "../types/extendedTokens";
 import { LinterOpts } from "../linter";
 
 /**
@@ -42,12 +52,9 @@ type EXEC_AST_TREE = {
  */
 type EXEC_AST_EXPR = EXEC_AST_ROOT|{
 	type: 'operation',
-	op: OP_TYPE_EXTD,
+	op: AST_OP_TOKEN,
 	args: (AST_EXPR | Literal)[],
-}|{
-	type: 'identifier',
-	value: string,
-}|{
+}|AST_IDENT_NAME|{
 	type: 'equal',
 	arg1: (AST_EXPR | Literal),
 	arg2: (AST_EXPR | Literal),
@@ -371,7 +378,7 @@ export default class Interpreter {
 						right: curr.right.tree,
 					})
 				}
-			} else if (curr.type === "identifier") {
+			} else if (curr.type === "identName") {
 				//Look up the variable in the store, using nil as a fallback
 				this._replaceArgWithLiteral(this._store.get(curr.value) || null);
 			} else if (curr.type === "tree") {
