@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import { AST_PROG } from "../../src/types/ast";
+import { AST_ASGN, AST_IDENT_NAME, AST_OP, AST_PROG } from "../../src/types/ast";
 import { parseProgram } from "../../src/linter";
 import ProgramManager from "../../src/utils/ProgramManager";
 
@@ -85,6 +85,73 @@ describe('ProgramManager', function () {
 			let mgr = new ProgramManager(ast as AST_PROG);
 
 			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
+		});
+	});
+
+	describe('reanalyse', function () {
+		it(`#setProg`, function () {
+			let prog = `
+			prog read X {
+				Y := cons X X
+			} write Y
+			`;
+			let [ast,err] = parseProgram(prog);
+
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+
+			let prog1 = `
+			prog read A {
+				B := cons A A
+			} write B
+			`;
+			let [ast1,err1] = parseProgram(prog1);
+
+			expect(err1).to.deep.equal([]);
+			expect(ast1.complete).to.be.true;
+
+			mgr.setProg(ast1 as AST_PROG);
+
+			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'B']));
+		});
+
+		it(`#reanalyse`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := cons X X
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the variables were assigned correctly
+			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+
+			//Update the AST object
+			//TODO: Make this neater
+			(ast as AST_PROG).input.value = 'A';
+			(ast as AST_PROG).output.value = 'B';
+			((ast as AST_PROG).body[0] as AST_ASGN).ident.value = 'B';
+			((((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_OP).args[0] as AST_IDENT_NAME).value = 'A';
+			((((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_OP).args[1] as AST_IDENT_NAME).value = 'A';
+
+			//The program manager should now be out of date
+			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+
+			//Trigger a refresh
+			mgr.reanalyse();
+
+			//The correct state should be shown
+			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'B']));
 		});
 	});
 });
