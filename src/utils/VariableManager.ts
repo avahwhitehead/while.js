@@ -32,7 +32,6 @@ export default class VariableManager {
 	private readonly _variableMap: Map<string, Map<string, string>>;
 	// Map of newName => [oldName, namespace]
 	private readonly _variableLookup: Map<string, [string, string]>;
-	private _variableCounter: number;
 	private _varNameGenerator: NameGenerator;
 	private _namespaceGenerator: NameGenerator;
 
@@ -40,7 +39,6 @@ export default class VariableManager {
 	 * @param opts		Constructor options
 	 */
 	constructor(opts?: VariableManagerProps) {
-		this._variableCounter = 0;
 		this._variableMap = new Map<string, Map<string, string>>();
 		this._variableLookup = new Map<string, [string, string]>();
 		this._varNameGenerator = new NameGenerator(opts?.minVarLen);
@@ -75,7 +73,12 @@ export default class VariableManager {
 
 		//Return the new name if it has already been set
 		//Unless setting the new value is forced
-		if (variables.has(name) && !force) return variables.get(name)!;
+		if (variables.has(name)) {
+			if (!force) return variables.get(name)!;
+
+			this._variableLookup.delete(variables.get(name)!);
+			variables.delete(name);
+		}
 
 		//Assign the variable's new name
 		variables.set(name, newName);
@@ -97,6 +100,31 @@ export default class VariableManager {
 	}
 
 	/**
+	 * Delete a variable from its namespace
+	 * @param name			The variable's old/current name
+	 * @param namespace		(Optional) The namespace from which to delete the variable.
+	 * 						Default is {@link VariableManager.DEFAULT_NS}.
+	 */
+	public delete(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS): void {
+		let variables: Map<string, string>|undefined = this._variableMap.get(namespace);
+		if (!variables) return;
+		this._variableLookup.delete(variables.get(name)!);
+		variables.delete(name);
+	}
+
+	/**
+	 * Remove a namespace and all the variables contained in it.
+	 * @param namespace		(Optional) The namespace to remove.
+	 * 						Default is {@link VariableManager.DEFAULT_NS}.
+	 */
+	public deleteNamespace(namespace: string|undefined = VariableManager.DEFAULT_NS): void {
+		for (let v of this._variableMap.get(namespace)?.keys() || []) {
+			this.delete(v, namespace);
+		}
+		this._variableMap.delete(namespace);
+	}
+
+	/**
 	 * Check whether the variable name exists in the map under a given namespace.
 	 * @param name			The name of the variable to check
 	 * @param namespace		(Optional) The namespace in which to look for the variable.
@@ -106,6 +134,17 @@ export default class VariableManager {
 	 */
 	public exists(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS): boolean {
 		return this.get(name, namespace || VariableManager.DEFAULT_NS) !== undefined;
+	}
+
+	/**
+	 * Check whether the namespace exists in the map.
+	 * @param namespace		The namespace in which to look for the variable.
+	 * 						Default is {@code "default"}.
+	 * @returns {true}	If the variable exists in the given namespace
+	 * @returns {false}	Otherwise
+	 */
+	public namespaceExists(namespace: string): boolean {
+		return this._variableMap.has(namespace);
 	}
 
 	/**

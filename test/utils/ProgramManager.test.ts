@@ -7,6 +7,15 @@ import ProgramManager from "../../src/utils/ProgramManager";
 
 chai.config.truncateThreshold = 0;
 
+function _expectParseProgram(prog: string): AST_PROG {
+	let [ast,err] = parseProgram(prog);
+	//Make sure there were no parsing errors
+	expect(err).to.deep.equal([]);
+	expect(ast.complete).to.be.true;
+	//Return the AST
+	return ast as AST_PROG;
+}
+
 describe('ProgramManager', function () {
 	describe('Variables', function () {
 		it(`Empty prog`, function () {
@@ -154,7 +163,6 @@ describe('ProgramManager', function () {
 		});
 	});
 
-
 	describe('macros', function () {
 		it(`single macro`, function () {
 			//Get an AST
@@ -267,6 +275,124 @@ describe('ProgramManager', function () {
 			//Check that the variables were assigned correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
 			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 2]]));
+		});
+	});
+
+	describe('rename variables', function () {
+		it(`should rename an internal root variable`, function () {
+			//Get an AST
+			let ast: AST_PROG = _expectParseProgram(`
+			prog read A {
+				B := hd A;
+				Z := tl A;
+				B := cons B B;
+				Z := cons Z Z;
+				D := cons B Z
+			} write D
+			`);
+
+			let mgr: ProgramManager = new ProgramManager(ast);
+
+			mgr.renameVariable('Z', 'C');
+
+			//Get an AST
+			let expected: AST_PROG = _expectParseProgram(`
+			prog read A {
+				B := hd A;
+				C := tl A;
+				B := cons B B;
+				C := cons C C;
+				D := cons B C
+			} write D
+			`);
+
+			expect(mgr.prog).to.deep.equal(expected);
+		});
+
+		it(`should rename an IO variable`, function () {
+			//Get an AST
+			let ast: AST_PROG = _expectParseProgram(`
+			prog read A {
+				B := cons A A;
+				C := B
+			} write C
+			`);
+
+			let mgr: ProgramManager = new ProgramManager(ast);
+
+			mgr.renameVariable('A', 'X');
+
+			//Get an AST
+			let expected: AST_PROG = _expectParseProgram(`
+			prog read X {
+				B := cons X X;
+				C := B
+			} write C
+			`);
+
+			expect(mgr.prog).to.deep.equal(expected);
+
+			mgr.renameVariable('C', 'Z');
+
+			//Get an AST
+			let expected2: AST_PROG = _expectParseProgram(`
+			prog read X {
+				B := cons X X;
+				Z := B
+			} write Z
+			`);
+
+			expect(mgr.prog).to.deep.equal(expected2);
+		});
+	});
+
+	describe('replace macros', function () {
+		it(`should replace a basic macro`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <macro> X
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+			//Get an AST
+			let [macroAst,macroErr] = parseProgram(`
+			macro read X {
+				X := cons X X;
+				X := cons X X;
+				Y := X
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(macroErr).to.deep.equal([]);
+			expect(macroAst.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['macro']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['macro', 1]]));
+
+			mgr.replaceMacro(macroAst as AST_PROG);
+
+			//Get an AST
+			let [expectedAst,expectedErr] = parseProgram(`
+			prog read X {
+				A := X;
+				A := cons A A;
+				A := cons A A;
+				B := A;
+				Y := B
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(expectedErr).to.deep.equal([]);
+			expect(expectedAst.complete).to.be.true;
+
+			expect(mgr.prog).to.deep.equal(expectedAst);
 		});
 	});
 });
