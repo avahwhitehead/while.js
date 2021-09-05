@@ -192,7 +192,9 @@ export default class ProgramManager {
 	/**
 	 * Traverse a {@code AST_CMD}, collecting information about the program.
 	 * Part of {@link this._analyseProgram}.
-	 * @param cmd	The command to traverse.
+	 * @param cmd			The command to traverse.
+	 * @param parentBody	The code "body" (list of commands) containing this command.
+	 * 						For use with {@link this._macroPositions}
 	 * @private
 	 */
 	private _analyseCmd(cmd: AST_CMD, parentBody: AST_CMD[]): void {
@@ -239,7 +241,11 @@ export default class ProgramManager {
 	/**
 	 * Traverse a {@code AST_EXPR}, collecting information about the program.
 	 * Part of {@link this._analyseProgram}.
-	 * @param expr	The expression to traverse.
+	 * @param expr			The expression to traverse.
+	 * @param parentCommand	The command which contains this expression.
+	 * 						For use with {@link this._macroPositions} and {@link this._variablePositions}.
+	 * @param parentBody	The code "body" (list of commands) containing {@code parentCommand}.
+	 * 						For use with {@link this._macroPositions}
 	 * @private
 	 */
 	private _analyseExpr(expr: AST_EXPR, parentCommand: AST_CMD|AST_PROG, parentBody: AST_CMD[]): void {
