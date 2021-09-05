@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
-import { AST_ASGN, AST_IDENT_NAME, AST_OP, AST_PROG } from "../../src/types/ast";
+import { AST_ASGN, AST_IDENT_NAME, AST_MACRO, AST_OP, AST_PROG } from "../../src/types/ast";
 import { parseProgram } from "../../src/linter";
 import ProgramManager from "../../src/utils/ProgramManager";
 
@@ -22,7 +22,7 @@ describe('ProgramManager', function () {
 
 			let mgr = new ProgramManager(ast as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 		});
 		it(`Assigning`, function () {
 			let prog = `
@@ -39,7 +39,7 @@ describe('ProgramManager', function () {
 
 			let mgr = new ProgramManager(ast as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
+			expect(mgr.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
 		});
 		it(`Loop/Cond`, function () {
 			let prog = `
@@ -62,7 +62,7 @@ describe('ProgramManager', function () {
 
 			let mgr = new ProgramManager(ast as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y', 'Z']));
+			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y', 'Z']));
 		});
 		it(`Switch`, function () {
 			let prog = `
@@ -84,7 +84,7 @@ describe('ProgramManager', function () {
 
 			let mgr = new ProgramManager(ast as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
+			expect(mgr.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
 		});
 	});
 
@@ -102,7 +102,7 @@ describe('ProgramManager', function () {
 
 			let mgr = new ProgramManager(ast as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 
 			let prog1 = `
 			prog read A {
@@ -116,7 +116,7 @@ describe('ProgramManager', function () {
 
 			mgr.setProg(ast1 as AST_PROG);
 
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'B']));
+			expect(mgr.variables).to.deep.equal(new Set(['A', 'B']));
 		});
 
 		it(`#reanalyse`, function () {
@@ -134,10 +134,9 @@ describe('ProgramManager', function () {
 			let mgr = new ProgramManager(ast as AST_PROG);
 
 			//Check that the variables were assigned correctly
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 
 			//Update the AST object
-			//TODO: Make this neater
 			(ast as AST_PROG).input.value = 'A';
 			(ast as AST_PROG).output.value = 'B';
 			((ast as AST_PROG).body[0] as AST_ASGN).ident.value = 'B';
@@ -145,13 +144,129 @@ describe('ProgramManager', function () {
 			((((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_OP).args[1] as AST_IDENT_NAME).value = 'A';
 
 			//The program manager should now be out of date
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['X', 'Y']));
+			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 
 			//Trigger a refresh
 			mgr.reanalyse();
 
 			//The correct state should be shown
-			expect(mgr.variableManager.variables).to.deep.equal(new Set(['A', 'B']));
+			expect(mgr.variables).to.deep.equal(new Set(['A', 'B']));
+		});
+	});
+
+
+	describe('macros', function () {
+		it(`single macro`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <add> cons X X
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 1]]));
+		});
+
+		it(`should update correctly after the AST is changed`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <add> cons X X
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 1]]));
+
+			//Update the AST object
+			(((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_MACRO).program = 'sub';
+
+			//The program manager should now be out of date
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
+
+			//Trigger a refresh
+			mgr.reanalyse();
+
+			//Check that the new macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['sub']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['sub', 1]]));
+		});
+
+		it(`should register multiple macros in the same program`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <add> cons X X;
+				Z := <sub> cons Y X
+			} write Z
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add', 'sub']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 1], ['sub', 1]]));
+		});
+
+		it(`should register multiple macros with the same name`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <add> cons X X;
+				while X {
+					X := tl X;
+					Y := <add> cons X X
+				}
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the macros were read correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 2]]));
+		});
+
+		it(`should register nested nested macros`, function () {
+			//Get an AST
+			let [ast,err] = parseProgram(`
+			prog read X {
+				Y := <add> cons X (<add> cons X X)
+			} write Y
+			`);
+			//Make sure there were no parsing errors
+			expect(err).to.deep.equal([]);
+			expect(ast.complete).to.be.true;
+
+			//Create a ProgramManager from the AST
+			let mgr = new ProgramManager(ast as AST_PROG);
+
+			//Check that the variables were assigned correctly
+			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
+			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 2]]));
 		});
 	});
 });

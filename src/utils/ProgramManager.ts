@@ -27,6 +27,7 @@ export default class ProgramManager {
 	private _props: ProgramManagerProps;
 	private _prog: AST_PROG;
 	private _variableManager: VariableManager;
+	private _macros: Map<string, number>;
 
 	/**
 	 * @param prog		The program AST
@@ -36,6 +37,7 @@ export default class ProgramManager {
 		this._props = props || {};
 		this._prog = prog;
 		this._variableManager = new VariableManager();
+		this._macros = new Map<string, number>();
 
 		this._analyseProgram();
 	}
@@ -49,6 +51,22 @@ export default class ProgramManager {
 
 	public get variables(): Set<string> {
 		return this.variableManager.variables;
+	}
+
+	/**
+	 * Get a list of all the macros in the program
+	 * @returns {string[]}	List of the names of each macro referenced in the program
+	 */
+	public get macros(): string[] {
+		return Array.from(this._macros.keys());
+	}
+
+	/**
+	 * Get a list of all the macros in the program, and the number of occurrences of each
+	 * @returns {[string, number][]}	List where each macro is of the format [macroName, occurrenceCount]
+	 */
+	public get macroCounts(): Map<string, number> {
+		return new Map(this._macros.entries());
 	}
 
 	/**
@@ -74,6 +92,7 @@ export default class ProgramManager {
 	 */
 	public reanalyse() {
 		this._variableManager = new VariableManager();
+		this._macros = new Map<string, number>();
 		this._analyseProgram();
 	}
 
@@ -174,6 +193,8 @@ export default class ProgramManager {
 					stack.push(expr.left);
 					break;
 				case "macro":
+					//Add the program macro to the store
+					this._macros.set(expr.program, (this._macros.get(expr.program) || 0) + 1);
 					//Analyse the input expression to the macro
 					stack.push(expr.input);
 					break;
