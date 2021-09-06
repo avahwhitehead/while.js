@@ -1,5 +1,6 @@
 import { AST_ASGN, AST_CMD, AST_EXPR, AST_IDENT_NAME, AST_MACRO, AST_PROG } from "../types/ast";
 import VariableManager from "./VariableManager";
+import { BinaryTree } from "../types/Trees";
 
 /**
  * Reverse a list, and add it to the end of a stack.
@@ -174,6 +175,14 @@ export default class ProgramManager {
 		this._variablePositions.set(newname, newpos);
 	}
 
+	public displayProgram(indent: string = '\t'): string {
+		let r: [number, string][] = [[0, `${this._prog.name.value} read ${this._prog.input.value} {`]];
+		if (this._prog.body.length === 0) r.push([0, '']);
+		else r.push(...this._displayBody(this._prog.body, 1));
+		r.push([0, `} write ${this._prog.output.value}`]);
+		return r.map(e => indent.repeat(e[0]) + e[1]).join('\n');
+	}
+
 	/**
 	 * Traverse the AST, collecting information about the program.
 	 * @private
@@ -301,5 +310,130 @@ export default class ProgramManager {
 					break;
 			}
 		}
+	}
+
+	/**
+	 * Convert a list of AST commands to a program string
+	 * @param body		The list of commands to convert
+	 * @param indent	The current indent level
+	 * @returns	{[number, string][]} List of lists, where each sublist represents a line in the program.
+	 * 							The first element is the indent level of the line, and the second element is the line itself.
+	 * @private
+	 */
+	private _displayBody(body: AST_CMD[], indent: number): [number, string][] {
+		let res: [number, string][] = [];
+		for (let [i, cmd] of body.entries()) {
+			//Convert each command to a string
+			res.push(...this._displayCmd(cmd, indent));
+			//Add a line separator to the end of every line except the last one
+			if (i < body.length - 1) res[res.length - 1][1] += ';'
+		}
+		return res;
+	}
+
+	/**
+	 * Convert a single AST command to a program string
+	 * @param cmd		The command to convert
+	 * @param indent	The current indent level
+	 * @returns	{[number, string][]} List of lists, where each sublist represents a line in the program.
+	 * 							The first element is the indent level of the line, and the second element is the line itself.
+	 * @private
+	 */
+	private _displayCmd(cmd: AST_CMD, indent: number): [number, string][] {
+		let r: [number, string][] = [];
+		switch (cmd.type) {
+			case "assign":
+				let s: string;
+				//Add a space after the assignment operator only if the expression doesn't already add one
+				if (this._displayExpr(cmd.arg).charAt(0) === ' ') s = `${cmd.ident.value} :=${(this._displayExpr(cmd.arg))}`;
+				else s = `${cmd.ident.value} := ${(this._displayExpr(cmd.arg))}`;
+				return [[indent, s]];
+			case "cond":
+				//The if statement and body
+				r.push([indent, `if ${this._displayExpr(cmd.condition)} {`]);
+				r.push(...this._displayBody(cmd.if, indent + 1));
+				//Display the else statement only if non-empty
+				if (cmd.else.length > 0) {
+					r.push([indent, `} else {`]);
+					r.push(...this._displayBody(cmd.else, indent + 1));
+				}
+				r.push([indent, `}`]);
+				return r;
+			case "loop":
+				r.push([indent, `while ${this._displayExpr(cmd.condition)} {`]);
+				r.push(...this._displayBody(cmd.body, indent + 1));
+				r.push([indent, `}`]);
+				return r;
+			case "switch":
+				r.push([indent, `switch (${this._displayExpr(cmd.condition)}) {`]);
+				for (let c of cmd.cases) {
+					r.push([indent + 1, `case ${this._displayExpr(c.cond)}:`]);
+					r.push(...this._displayBody(c.body, indent + 2));
+				}
+				r.push([indent, `}`]);
+				return r;
+		}
+	}
+
+	/**
+	 * Convert an AST expression to a program string
+	 * @param expr		The expression to display as a string
+	 * @returns	{string} The expression as a strings
+	 * @private
+	 */
+	private _displayExpr(expr: AST_EXPR): string {
+		switch (expr.type) {
+			case "identName":
+				return expr.value;
+			case "operation":
+				return `${expr.op.value} ${expr.args.map(c => this._displayExpr(c)).join(' ')}`;
+			case "equal":
+				return `${this._displayExpr(expr.arg1)} = ${expr.arg2}`;
+			case "list":
+				return `[${expr.elements.map(c => this._displayExpr(c)).join(', ')}]`;
+			case "tree_expr":
+				return `<${this._displayExpr(expr.left)}.${this._displayExpr(expr.right)}>`;
+			case "tree":
+				return this._displayTree(expr.tree);
+			case "macro":
+				return `<${expr.program}> ${this._displayExpr(expr.input)}`;
+		}
+	}
+
+	/**
+	 * Convert a binary tree to a program string representation
+	 * @param tree		The list of commands to convert
+	 * @param pre		The string to use to "open" a tree
+	 * @param sep		The string to use to separate the two tree nodes
+	 * @param post		The string to use to "close" the tree
+	 * @returns {string}	The tree as a string
+	 * @private
+	 */
+	// private _displayTree(tree: BinaryTree, pre='<', sep='.', post='>'): string {
+	private _displayTree(tree: BinaryTree, pre='cons ', sep=' ', post=''): string {
+		if (tree === null) return 'nil';
+
+		let res: string = '';
+		//Go depth-first through the tree building up the string
+		let stack: [BinaryTree, boolean][] = [[tree, false]];
+		while (stack.length) {
+			let [tree, isRight]: [BinaryTree, boolean] = stack.pop()!;
+
+			if (tree === null) {
+				//Display the nil node
+				res += 'nil';
+				//Close the tree if required
+				if (isRight) res += post;
+				//Otherwise add the separator
+				else res += sep;
+			} else {
+				//Open a new tree
+				res += pre;
+				//Convert the left side before the right side
+				stack.push([tree.right, true]);
+				stack.push([tree.left, false]);
+			}
+		}
+		return res;
 	}
 }
