@@ -380,7 +380,7 @@ function _readExpr(state: StateManager, opts: IntParserOpts, checkEq = true): [P
 		if (first.value === TKN_PREN_OPN) {
 			let status: ParseStatus = ParseStatus.OK;
 			//Parse the expression between the brackets
-			const [exprStatus, expr]: [ParseStatus, AST_EXPR | AST_EXPR_PARTIAL | null] = _readExpr(state, opts, false);
+			const [exprStatus, expr]: [ParseStatus, AST_EXPR | AST_EXPR_PARTIAL | null] = _readExpr(state, opts);
 			if (exprStatus !== ParseStatus.OK) status = exprStatus;
 
 			//Expect a closing parenthesis

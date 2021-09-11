@@ -4,7 +4,7 @@ import { describe, it } from "mocha";
 import parser from "../../src/linter/parser";
 import lexer from "../../src/linter/lexer";
 import { OP_TOKEN, TKN_CONS, TKN_HD, TKN_TL, WHILE_TOKEN, } from "../../src/types/tokens";
-import { AST_IDENT_NAME, AST_OP_TOKEN, AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
+import { AST_EXPR, AST_IDENT_NAME, AST_OP_EQL, AST_OP_TOKEN, AST_PROG, AST_PROG_PARTIAL } from "../../src/types/ast";
 import { error, tn, tree } from "../utils";
 import { ErrorType } from "../../src";
 import { OP_TOKEN_EXTD, WHILE_TOKEN_EXTD } from "../../src/types/extendedTokens";
@@ -22,6 +22,15 @@ export function opr(t: OP_TOKEN|OP_TOKEN_EXTD): AST_OP_TOKEN {
 	return {
 		type: 'opToken',
 		value: t,
+	};
+}
+
+export function eql(e: AST_EXPR, f: AST_EXPR): AST_OP_EQL {
+	return {
+		type: 'equal',
+		complete: true,
+		arg1: e,
+		arg2: f,
 	};
 }
 
@@ -507,17 +516,25 @@ describe('Parser', function () {
 					},
 				]
 			};
+			//Check that the AST is produced for an equality check without parens
 			let [tokens,] = lexer(
 				'prog read X {\n' +
-				'  if X=5 {\n' +
+				'  if X = 5 {\n' +
 				'    X := tl X\n' +
 				'  }\n' +
 				'} write X',
 			) as [WHILE_TOKEN_EXTD[],unknown];
-			expect(parser(tokens)).to.deep.equal([
-				expected,
-				[]
-			]);
+			expect(parser(tokens)).to.deep.equal([expected, []]);
+
+			//Check that the AST is produced for an equality check with parens
+			let [tokens1,] = lexer(
+				'prog read X {\n' +
+				'  if (X = 5) {\n' +
+				'    X := tl X\n' +
+				'  }\n' +
+				'} write X',
+			) as [WHILE_TOKEN_EXTD[],unknown];
+			expect(parser(tokens1)).to.deep.equal([expected, []]);
 		});
 	});
 
