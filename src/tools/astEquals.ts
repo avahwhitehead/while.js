@@ -56,8 +56,6 @@ const true_token: AST_OP = {
 	args: [nil_token, nil_token]
 };
 
-//TODO: Put the fully commented WHILE code in this file as a comment
-
 const EQUALS_PROG: AST_PROG = {
 	type: 'program',
 	complete: true,
@@ -66,32 +64,20 @@ const EQUALS_PROG: AST_PROG = {
 	// read TS {
 	input: _idnt('TS'),
 	body: [
-		// t1 := hd TS;
-		_assign('t1',
-			_operation('hd', 'TS')
-		),
-		// t2 := tl TS;
-		_assign('t2',
-			_operation('tl', 'TS')
-		),
-
-		// s1 := cons t1 nil;
+		// s1 := cons (hd TS) nil;
 		_assign('s1',
-			_operation('cons', 't1', nil_token)
+			_operation('cons', _operation('hd', 'TS'), nil_token)
 		),
-		// s2 := cons t2 nil;
+		// s2 := cons (tl TS) nil;
 		_assign('s2',
-			_operation('cons', 't2', nil_token)
+			_operation('cons', _operation('tl', 'TS'), nil_token)
 		),
 		
 		// isEqual := true;
 		_assign('isEqual', true_token),
 
-		// loop := s1;
-		_assign('loop', _operation('cons', nil_token, nil_token)),
-
-		// while loop {
-		_while(_idnt('loop'), [
+		// while s1 {
+		_while(_idnt('s1'), [
 			// t1 := hd s1;
 			_assign('t1', _operation('hd', 's1')),
 			// s1 := tl s1;
@@ -102,57 +88,40 @@ const EQUALS_PROG: AST_PROG = {
 			_assign('s2', _operation('tl', 's2')),
 
 			// if t1 {
-			_if(_idnt('t1'),
-				[
-					// if (t2) {
-					_if(_idnt('t2'),
-						[
-							// s1 := cons (hd t1) s1;
-							_assign('s1', _operation('cons', _operation('hd', 't1'), 's1')),
-							// s1 := cons (tl t1) s1;
-							_assign('s1', _operation('cons', _operation('tl', 't1'), 's1')),
-							// s2 := cons (hd t2) s2;
-							_assign('s2', _operation('cons', _operation('hd', 't2'), 's2')),
-							// s2 := cons (tl t2) s2
-							_assign('s2', _operation('cons', _operation('tl', 't2'), 's2'))
-						],
-						// } else {
-						[
-							// isEqual := false
-							_assign('isEqual', false_token)
-						],
-					// }
-					),
-				// } else {
-				], [
-					// if t2 {
-					_if(_idnt('t2'), [
+			_if(_idnt('t1'), [
+				// if t2 {
+				_if(_idnt('t2'),
+					[
+						// s1 := cons (hd t1) s1;
+						_assign('s1', _operation('cons', _operation('hd', 't1'), 's1')),
+						// s1 := cons (tl t1) s1;
+						_assign('s1', _operation('cons', _operation('tl', 't1'), 's1')),
+						// s2 := cons (hd t2) s2;
+						_assign('s2', _operation('cons', _operation('hd', 't2'), 's2')),
+						// s2 := cons (tl t2) s2
+						_assign('s2', _operation('cons', _operation('tl', 't2'), 's2'))
+					// } else {
+					], [
 						// isEqual := false
-						_assign('isEqual', false_token)
-					// }
-					])
-				],
-			//};
-			),
-
-			// if isEqual {
-			_if(_idnt('isEqual'), [
-				// if s1 {
-				_if(_idnt('s1'), [
-					// loop := true
-					_assign('loop', true_token)
-				// } else {
-				], [
-					// loop := false
-					_assign('loop', false_token)
+						_assign('isEqual', false_token),
+						// s1 := nil
+						_assign('s1', nil_token)
+					],
 				// }
-				])
+				),
 			// } else {
 			], [
-				// loop := false
-				_assign('loop', false_token)
-			// }
-			]),
+				// if t2 {
+				_if(_idnt('t2'), [
+					// isEqual := false
+					_assign('isEqual', false_token),
+					// s1 := nil
+					_assign('s1', nil_token)
+				// }
+				])
+			],
+			//};
+			),
 	 	// }
 		]),
 	],
@@ -172,21 +141,16 @@ checking that every `nil` is at the same position in each tree.
 *)
 
 myequals read TS {
-	//Split the input into the two trees
-    t1 := hd TS;
-    t2 := tl TS;
-
-	//Initialise two stacks to hold the discovered, untested nodes in the trees
-    s1 := cons t1 nil;
-    s2 := cons t2 nil;
+    //Initialise two stacks to hold unchecked subtrees
+    //Initially containing the two input trees
+    s1 := cons (hd TS) nil;
+    s2 := cons (tl TS) nil;
 
 	//Hold whether or not a difference has been found in the trees
     isEqual := true;
 
-    //Loop for as long as the trees are not fully traversed
-    //and no differences have been found
-    loop := cons nil nil;
-    while loop {
+    //Loop for as long as there are untraversed nodes in the trees
+    while s1 {
 		//Pop the next unvisited subtree from the t1 stack
         t1 := hd s1;
         s1 := tl s1;
@@ -197,7 +161,7 @@ myequals read TS {
         if t1 {
             if t2 {
             	// t1 and t2 are both not nil
-                // Nodes may be equal here
+                // Check whether they are equal
 
                 // Add the t1 subtrees to the stack
                 s1 := cons (hd t1) s1;
@@ -207,35 +171,19 @@ myequals read TS {
                 s2 := cons (hd t2) s2;
                 s2 := cons (tl t2) s2
             } else {
-            	//t2 is nil and t1 is not nil
-                //The trees are different
-                isEqual := false
+            	//t2 is nil and t1 is not
+            	//Mark the trees as different and stop looping
+                isEqual := false;
+            	s1 := false
             }
         } else {
             if t2 {
-            	//t1 is nil and t2 is not nil
-                //The trees are different
-                isEqual := false
-            } else {
-            	//t1 and t2 are both nil
-                //Subtrees are equal here
+            	//t1 is nil and t2 is not
+            	//Mark the trees as different and stop looping
+                isEqual := false;
+            	s1 := false
             }
-        };
-
-        if isEqual {
-            if s1 {
-                //Trees are so far equal and not completely traversed
-                //Keep checking
-                loop := true
-            } else {
-                //Trees are completely traversed and are found to be equal
-            	//Stop checking
-                loop := false
-            }
-        } else {
-            //Trees have been found to be not equal
-            //Stop checking
-            loop := false
+            //Otherwise subtrees are both nil
         }
     }
 } write isEqual
