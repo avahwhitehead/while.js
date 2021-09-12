@@ -1,6 +1,23 @@
-import { AST_ASGN, AST_CMD, AST_EXPR, AST_IDENT_NAME, AST_MACRO, AST_PROG } from "../types/ast";
+import {
+	AST_ASGN,
+	AST_CMD,
+	AST_EXPR,
+	AST_EXPR_TREE,
+	AST_IDENT_NAME,
+	AST_IF,
+	AST_LIST,
+	AST_MACRO,
+	AST_OP,
+	AST_PROG,
+	AST_SWITCH,
+	AST_SWITCH_CASE,
+	AST_SWITCH_DEFAULT,
+	AST_TREE
+} from "../types/ast";
 import VariableManager from "./VariableManager";
+import NameGenerator from "./NameGenerator";
 import { BinaryTree } from "../types/Trees";
+import astEquals from "../tools/astEquals";
 
 /**
  * Reverse a list, and add it to the end of a stack.
@@ -111,11 +128,12 @@ export default class ProgramManager {
 
 	/**
 	 * Replace the first occurrence of a macro call with the code from its program.
-	 * @param macro		The AST to replace the macro call with
-	 * @param name		(Optional) The name of the macro to replace.
-	 * 					Defaults to {@code macro.name.value}
+	 * @param macro				The AST to replace the macro call with
+	 * @param name				(Optional) The name of the macro to replace.
+	 * 							Defaults to {@code macro.name.value}
+	 * @param convertToPure		Whether to convert the macro to pure WHILE before inserting it
 	 */
-	public replaceMacro(macro: AST_PROG, name?: string): void {
+	public replaceMacro(macro: AST_PROG, name?: string, convertToPure: boolean = false): void {
 		//Use the macro name as the variable namespace, unless the namespace already exists
 		let namespace: string = this.variableManager.namespaceExists(macro.name.value)
 			? this.variableManager.getNewNamespace()
@@ -130,6 +148,10 @@ export default class ProgramManager {
 		let macroExpr: any = macroPosition.expr;
 
 		let macroManager: ProgramManager = new ProgramManager(macro);
+
+		//Convert the macro to pure WHILE if requested
+		if (convertToPure) macroManager.toPure();
+
 		for (let v of macroManager.variables) {
 			let newName = this.variableManager.add(v, namespace);
 			macroManager.renameVariable(v, newName);
@@ -435,5 +457,285 @@ export default class ProgramManager {
 			}
 		}
 		return res;
+	}
+
+	/**
+	 * Convert the program's AST to pure WHILE.
+	 * The resulting AST will have the same semantics as the original program.
+	 * @returns {this}	This ProgramManager object
+	 */
+	public toPure(): this {
+		//Get a unique macro name to use for replacing the equals expressions in the code
+		let equalsMacroName: string;
+		let nameGenerator = new NameGenerator();
+		do {
+			equalsMacroName = nameGenerator.next();
+		} while (this.macroCounts.has(equalsMacroName));
+
+		//Convert the program body to pure
+		this._bodyToPure(this._prog.body, equalsMacroName);
+
+		//Reanalyse the AST since the tree may have changed
+		this.reanalyse();
+
+		//Replace each of the equality macros with the actual code
+		while (this.macroCounts.has(equalsMacroName)) {
+			this.replaceMacro(astEquals, equalsMacroName);
+		}
+
+		//Return the manager
+		return this;
+	}
+
+	/**
+	 * Convert an AST_BODY element to pure WHILE
+	 * @param body				The body to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _bodyToPure(body: AST_CMD[], equalsMacroName: string): AST_CMD[] {
+		for (let cmd of body) this._cmdToPure(cmd, equalsMacroName);
+		return body;
+	}
+
+	/**
+	 * Convert a `cmd` command to pure WHILE
+	 * @param cmd				The cmd to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _cmdToPure(cmd: AST_CMD, equalsMacroName: string): AST_CMD {
+		switch (cmd.type) {
+			case "assign":
+				cmd.arg = this._exprToPure(cmd.arg, equalsMacroName);
+				break;
+			case "cond":
+				cmd.condition = this._exprToPure(cmd.condition, equalsMacroName);
+				cmd.if = cmd.if.map(c => this._cmdToPure(c, equalsMacroName));
+				cmd.else = cmd.else.map(c => this._cmdToPure(c, equalsMacroName));
+				break;
+			case "loop":
+				cmd.condition = this._exprToPure(cmd.condition, equalsMacroName);
+				cmd.body = cmd.body.map(c => this._cmdToPure(c, equalsMacroName));
+				break;
+			case "switch":
+				this._switchToPure(cmd, equalsMacroName);
+				break;
+		}
+
+		return cmd;
+	}
+
+	/**
+	 * Convert a `switch` command to pure WHILE
+	 * @param sw				The switch to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _switchToPure(sw: AST_SWITCH, equalsMacroName: string): AST_IF {
+		//Save the switch condition expression, and the cases and default block
+		let condition: AST_EXPR = sw.condition;
+		let cases: AST_SWITCH_CASE[] = sw.cases;
+		let dflt: AST_SWITCH_DEFAULT = sw.default;
+
+		//Restructure the switch object into an IF statement
+		let root: AST_IF = sw as any;
+		root.type = 'cond';
+		root.else = [];
+		delete (root as any).cases;
+		delete (root as any).default;
+		delete (root as any).condition;
+
+		if (cases.length === 0) {
+			//If there are no cases, all cases should fall into the "default" block
+			//TODO: Is it possible to remove `if nil` condition and just return the code body?
+			root.condition = { type: 'tree', complete: true, tree: null };
+			root.if = [];
+		} else {
+			//Otherwise, the root condition should be comparing the switch's input
+			//with the first case's condition
+			root.condition = this._exprToPure({
+				type: 'equal',
+				complete: true,
+				arg1: condition,
+				arg2: cases[0].cond,
+			}, equalsMacroName);
+			root.if = this._bodyToPure(cases[0].body, equalsMacroName);
+		}
+
+		//Travel through the switch adding each case to the last condition's else block
+		//The first case is skipped because it has already been set to the root (if it exists)
+		let prevIf: AST_IF = root;
+		for (let i = 1; i < cases.length; i++) {
+			const c: AST_SWITCH_CASE = cases[i];
+			//The if statement for this case
+			let cond: AST_IF = {
+				type: 'cond',
+				complete: true,
+				//Compare the condition with the switch's input expression
+				condition: this._exprToPure({
+					type: 'equal',
+					complete: true,
+					arg1: condition,
+					arg2: c.cond,
+				}, equalsMacroName),
+				//Case body goes here
+				if: this._bodyToPure(c.body, equalsMacroName),
+				//Else statement to be populated with the next case, or the default statement
+				else: [],
+			}
+			//Add this condition to the previous if's else block
+			prevIf.else.push(cond);
+			//Save this if statement to be accessed as the next condition's parent
+			prevIf = cond;
+		}
+
+		//Set the final else block to the default case's body
+		prevIf.else = this._bodyToPure(dflt.body, equalsMacroName);
+
+		//Return the root condition
+		return root;
+	}
+
+	/**
+	 * Convert a `list` command to pure WHILE
+	 * @param lst				The list to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _listToPure(lst: AST_LIST, equalsMacroName: string): AST_OP|AST_TREE {
+		let res: AST_OP|AST_TREE = {type: 'tree', complete: true, tree: null};
+		for (let i = lst.elements.length - 1; i >= 0; --i) {
+			res = {
+				type: 'operation',
+				complete: true,
+				op: {type: 'opToken', value: 'cons'},
+				args: [
+					this._exprToPure(lst.elements[i], equalsMacroName),
+					res
+				],
+			};
+		}
+		return res;
+	}
+
+	/**
+	 * Convert a `expr` command to pure WHILE
+	 * @param expr				The expr to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _exprToPure(expr: AST_EXPR, equalsMacroName: string): AST_EXPR {
+		switch (expr.type) {
+			case "identName":
+				break;
+			case "operation":
+				for (let i = 0; i < expr.args.length; i++) {
+					expr.args[i] = this._exprToPure(expr.args[i], equalsMacroName);
+				}
+				break;
+			case "equal":
+				return {
+					type: 'macro',
+					complete: true,
+					program: equalsMacroName,
+					input: {
+						type: 'operation',
+						complete: true,
+						op: {type: 'opToken', value: 'cons'},
+						args: [this._exprToPure(expr.arg1, equalsMacroName), this._exprToPure(expr.arg2, equalsMacroName)]
+					},
+				};
+			case "list":
+				return this._listToPure(expr, equalsMacroName);
+			case "tree_expr":
+				return this._treeExprToPure(expr, equalsMacroName);
+			case "tree":
+				return this._treeToPure(expr.tree);
+			case "macro":
+				expr.input = this._exprToPure(expr.input, equalsMacroName);
+				break;
+		}
+		return expr;
+	}
+
+	/**
+	 * Convert a `treeExpr` command to pure WHILE
+	 * @param tree	The treeExpr to convert
+	 * @param equalsMacroName	Name of the macro replacing equals operations
+	 * @private
+	 */
+	private _treeExprToPure(tree: AST_EXPR_TREE, equalsMacroName: string): AST_OP {
+		return {
+			type: 'operation',
+			complete: true,
+			op: { type:'opToken', value: 'cons' },
+			args: [
+				this._exprToPure(tree.left, equalsMacroName),
+				this._exprToPure(tree.right, equalsMacroName),
+			],
+		}
+	}
+
+	/**
+	 * Convert a binary tree to pure WHILE
+	 * @param tree	The tree to convert
+	 * @private
+	 */
+	private _treeToPure(tree: BinaryTree): AST_OP|AST_TREE {
+		function nil(): AST_TREE {
+			return {
+				type: 'tree',
+				complete: true,
+				tree: null
+			};
+		}
+
+		if (tree === null) return nil();
+
+		let treeStack: BinaryTree[] = [];
+		let opStack: AST_OP[] = [];
+
+		treeStack.push(tree);
+		const root: AST_OP = {
+			type: 'operation',
+			complete: true,
+			op: {type: 'opToken', value: 'cons'},
+			args: [],
+		};
+		opStack.push(root);
+
+		function _addChildTree(subtree: BinaryTree, op: AST_OP, opStack: AST_OP[], treeStack: BinaryTree[]): void {
+			if (subtree === null) {
+				op.args.push(nil());
+				return;
+			}
+			let child: AST_OP = {
+				type: 'operation',
+				complete: true,
+				op: {type: 'opToken', value: 'cons'},
+				args: [],
+			};
+			op.args.push(child);
+			opStack.push(child);
+			treeStack.push(subtree);
+		}
+
+		while (opStack.length > 0) {
+			let tree: BinaryTree = treeStack.pop()!;
+			let op: AST_OP = opStack.pop()!;
+
+			if (op.args.length === 0) {
+				treeStack.push(tree);
+				opStack.push(op);
+				_addChildTree(tree.left, op, opStack, treeStack);
+			} else if (op.args.length === 1) {
+				_addChildTree(tree.right, op, opStack, treeStack);
+			} else {
+				//This subtree is finished
+				//Keep going back up
+			}
+		}
+		return root;
 	}
 }

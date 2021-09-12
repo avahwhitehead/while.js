@@ -4,6 +4,7 @@ import { describe, it } from "mocha";
 import { AST_ASGN, AST_IDENT_NAME, AST_MACRO, AST_OP, AST_PROG } from "../../src/types/ast";
 import { parseProgram } from "../../src/linter";
 import ProgramManager from "../../src/utils/ProgramManager";
+import astEquals from "../../src/tools/astEquals";
 
 chai.config.truncateThreshold = 0;
 
@@ -571,4 +572,480 @@ describe('ProgramManager', function () {
 			expect(mgr.displayProgram()).to.deep.equal(expected);
 		});
 	})
+
+	describe('convert to pure', function () {
+		it(`should convert false to nil`, function () {
+			//Create a ProgramManager for the program
+			let mgr = new ProgramManager(
+				_expectParseProgram(`
+				prog read X {
+					Y := false
+				} write Y
+				`)
+			);
+			//Convert the program to pure WHILE
+			mgr.toPure();
+
+			//The expected pure AST
+			let expected = _expectParseProgram(`
+			prog read X {
+				Y := nil
+			} write Y
+			`);
+			//Expect this output
+			expect(mgr.prog).to.deep.equal(expected);
+		});
+
+		it(`should convert true to cons nil nil`, function () {
+			//Create a ProgramManager for the program
+			let mgr = new ProgramManager(
+				_expectParseProgram(`
+				prog read X {
+					Y := true
+				} write Y
+				`)
+			);
+			//Convert the program to pure WHILE
+			mgr.toPure();
+
+			//The expected pure AST
+			let expected = _expectParseProgram(`
+			prog read X {
+				Y := cons nil nil
+			} write Y
+			`);
+			//Expect this output
+			expect(mgr.prog).to.deep.equal(expected);
+		});
+
+		describe(`Convert binary tree literals to cons operations`, function () {
+			it(`should convert empty binary trees to nil`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := 0
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := nil
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert numbers to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := 5
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons nil (cons nil (cons nil (cons nil (cons nil nil))))
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+		});
+
+		describe(`Convert lists to cons operations`, function () {
+			it(`should convert an empty list to nil`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := []
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := nil
+				} write Y
+				`);
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert a list with 1 element to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := [3]
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons (cons nil cons nil cons nil nil) nil
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert a list with multiple elements to nested cons with trailing nil`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := [3, <<<nil.nil>.<nil.nil>>.nil>]
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons (cons nil cons nil cons nil nil) cons (cons (cons (cons nil nil) (cons nil nil)) nil) nil
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+		});
+
+		describe(`Convert expression trees to cons operations`, function () {
+			it(`should convert a simple tree to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := <nil.nil>
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons nil nil
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert a single layer tree to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := <2.nil>
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons (cons nil cons nil nil) nil
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert nested trees to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := <<nil.<nil.nil>>.<nil.nil>>
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons (cons nil (cons nil nil)) (cons nil nil)
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert nested trees to cons`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := <nil.<nil.<nil.<nil.<nil.nil>>>>>
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons nil (cons nil (cons nil (cons nil (cons nil nil))))
+				} write Y
+				`);
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+		});
+
+		describe(`Convert switches to nested ifs`, function () {
+			it(`should convert empty switch to empty if`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						switch X { }
+					} write X
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if nil {} else {}
+				} write X
+				`);
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert empty switch's default to execute unconditionally`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						switch X {
+							default:
+								X := cons nil nil
+						}
+					} write X
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if nil { } else {
+						X := cons nil nil
+					}
+				} write X
+				`);
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(expected);
+			});
+
+			it(`should convert switches to nested ifs`, function () {
+				//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						switch X {
+							case 2:
+								Z := nil
+							case 3:
+								Z := cons nil nil
+							default:
+								Z := cons nil cons nil nil
+						}
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if <A> cons X (cons nil cons nil nil) {
+						Z := nil
+					} else {
+						if <A> cons X (cons nil cons nil cons nil nil) {
+							Z := cons nil nil
+						} else {
+							Z := cons nil cons nil nil
+						}
+					}
+				} write Z
+				`);
+				let expectedManager = new ProgramManager(expected);
+				expectedManager.replaceMacro(astEquals, 'A');
+				expectedManager.replaceMacro(astEquals, 'A');
+			});
+		});
+
+		describe(`Replace equals operator with the macro code`, function () {
+			it(`should replace equals operator in a condition`, function () {//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						if X = nil {
+							Y := cons nil nil
+						} else {
+							Y := nil
+						}
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if (<equality> cons X nil) {
+						Y := cons nil nil
+					} else {
+						Y := nil
+					}
+				} write Y
+				`);
+				let exprManager = new ProgramManager(expected);
+				exprManager.replaceMacro(astEquals, 'equality');
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(exprManager.prog);
+			});
+
+			it(`should replace equals operator in a statement`, function () {//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						Y := <X=nil.nil>
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					Y := cons (<equality> cons X nil) nil
+				} write Y
+				`);
+				let exprManager = new ProgramManager(expected);
+				exprManager.replaceMacro(astEquals, 'equality');
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(exprManager.prog);
+			});
+
+			it(`should replace equals operator in a switch input`, function () {//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						switch (X = cons nil nil) {
+							case nil:
+								Y := nil
+							case cons nil nil:
+								Y := cons nil nil
+						}
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if (<equality> cons (<equality> cons X cons nil nil) nil) {
+						Y := nil
+					} else {
+						if (<equality> cons (<equality> cons X cons nil nil) (cons nil nil)) {
+							Y := cons nil nil
+						}
+					}
+				} write Y
+				`);
+				let exprManager = new ProgramManager(expected);
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(exprManager.prog);
+			});
+
+			it(`should replace equals operator in a switch condition`, function () {//Create a ProgramManager for the program
+				let mgr = new ProgramManager(
+					_expectParseProgram(`
+					prog read X {
+						switch X {
+							case nil:
+								Y := nil
+							case X = X:
+								Y := cons nil nil
+						}
+					} write Y
+					`)
+				);
+				//Convert the program to pure WHILE
+				mgr.toPure();
+
+				//The expected pure AST
+				let expected = _expectParseProgram(`
+				prog read X {
+					if (<equality> cons X nil) {
+						Y := nil
+					} else {
+						if (<equality> cons X (<equality> cons X X)) {
+							Y := cons nil nil
+						}
+					}
+				} write Y
+				`);
+				let exprManager = new ProgramManager(expected);
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+				exprManager.replaceMacro(astEquals, 'equality');
+
+				//Expect this output
+				expect(mgr.prog).to.deep.equal(exprManager.prog);
+			});
+		});
+	});
 });
