@@ -26,7 +26,7 @@ describe('VariableManager', function () {
 		expect(manager.get('myvar')).to.equal('newname');
 
 		//Check that the new variable names appear in the variables list
-		expect(manager.variables).to.deep.equal(new Set(['myvar', 'renamed', 'newname']));
+		expect(manager.variables).to.deep.equal(new Set(['renamed', 'newname']));
 	});
 
 	it(`Namespaces`, function () {
