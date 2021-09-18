@@ -2,57 +2,38 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import { AST_ASGN, AST_IDENT_NAME, AST_MACRO, AST_OP, AST_PROG } from "../../src/types/ast";
-import { parseProgram } from "../../src/linter";
 import ProgramManager from "../../src/utils/ProgramManager";
 import astEquals from "../../src/tools/astEquals";
+import { expectParseProgram } from "../utils";
 
 chai.config.truncateThreshold = 0;
-
-function _expectParseProgram(prog: string): AST_PROG {
-	let [ast,err] = parseProgram(prog);
-	//Make sure there were no parsing errors
-	expect(err).to.deep.equal([]);
-	expect(ast.complete).to.be.true;
-	//Return the AST
-	return ast as AST_PROG;
-}
 
 describe('ProgramManager', function () {
 	describe('Variables', function () {
 		it(`Empty prog`, function () {
-			let prog = `
+			let ast = expectParseProgram(`
 			prog read X {
 				
 			} write Y
-			`;
-			let [ast,err] = parseProgram(prog);
-
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
-			let mgr = new ProgramManager(ast as AST_PROG);
+			`);
+			let mgr = new ProgramManager(ast);
 
 			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 		});
 		it(`Assigning`, function () {
-			let prog = `
+			let ast = expectParseProgram(`
 			prog read X {
 				A := A;
 				Y := X;
 				X := Z
 			} write Y
-			`;
-			let [ast,err] = parseProgram(prog);
-
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
-			let mgr = new ProgramManager(ast as AST_PROG);
+			`);
+			let mgr = new ProgramManager(ast);
 
 			expect(mgr.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
 		});
 		it(`Loop/Cond`, function () {
-			let prog = `
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := X;
 				while Y {
@@ -64,18 +45,14 @@ describe('ProgramManager', function () {
 					Z := cons nil Z
 				}
 			} write Z
-			`;
-			let [ast,err] = parseProgram(prog);
+			`);
 
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y', 'Z']));
 		});
 		it(`Switch`, function () {
-			let prog = `
+			let ast = expectParseProgram(`
 			prog read X {
 				switch X {
 					case Y:
@@ -86,13 +63,8 @@ describe('ProgramManager', function () {
 						A := cons nil cons nil nil
 				}
 			} write A
-			`;
-			let [ast,err] = parseProgram(prog);
-
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
-			let mgr = new ProgramManager(ast as AST_PROG);
+			`);
+			let mgr = new ProgramManager(ast);
 
 			expect(mgr.variables).to.deep.equal(new Set(['A', 'X', 'Y', 'Z']));
 		});
@@ -100,58 +72,45 @@ describe('ProgramManager', function () {
 
 	describe('reanalyse', function () {
 		it(`#setProg`, function () {
-			let prog = `
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := cons X X
 			} write Y
-			`;
-			let [ast,err] = parseProgram(prog);
-
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
-			let mgr = new ProgramManager(ast as AST_PROG);
+			`);
+			let mgr = new ProgramManager(ast);
 
 			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 
-			let prog1 = `
+			let ast1 = expectParseProgram(`
 			prog read A {
 				B := cons A A
 			} write B
-			`;
-			let [ast1,err1] = parseProgram(prog1);
+			`);
 
-			expect(err1).to.deep.equal([]);
-			expect(ast1.complete).to.be.true;
-
-			mgr.setProg(ast1 as AST_PROG);
+			mgr.setProg(ast1);
 
 			expect(mgr.variables).to.deep.equal(new Set(['A', 'B']));
 		});
 
 		it(`#reanalyse`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := cons X X
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the variables were assigned correctly
 			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
 
 			//Update the AST object
-			(ast as AST_PROG).input.value = 'A';
-			(ast as AST_PROG).output.value = 'B';
-			((ast as AST_PROG).body[0] as AST_ASGN).ident.value = 'B';
-			((((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_OP).args[0] as AST_IDENT_NAME).value = 'A';
-			((((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_OP).args[1] as AST_IDENT_NAME).value = 'A';
+			ast.input.value = 'A';
+			ast.output.value = 'B';
+			(ast.body[0] as AST_ASGN).ident.value = 'B';
+			(((ast.body[0] as AST_ASGN).arg as AST_OP).args[0] as AST_IDENT_NAME).value = 'A';
+			(((ast.body[0] as AST_ASGN).arg as AST_OP).args[1] as AST_IDENT_NAME).value = 'A';
 
 			//The program manager should now be out of date
 			expect(mgr.variables).to.deep.equal(new Set(['X', 'Y']));
@@ -167,17 +126,13 @@ describe('ProgramManager', function () {
 	describe('macros', function () {
 		it(`single macro`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <add> cons X X
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the macros were read correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
@@ -186,24 +141,20 @@ describe('ProgramManager', function () {
 
 		it(`should update correctly after the AST is changed`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <add> cons X X
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the macros were read correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
 			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 1]]));
 
 			//Update the AST object
-			(((ast as AST_PROG).body[0] as AST_ASGN).arg as AST_MACRO).program = 'sub';
+			((ast.body[0] as AST_ASGN).arg as AST_MACRO).program = 'sub';
 
 			//The program manager should now be out of date
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
@@ -218,18 +169,14 @@ describe('ProgramManager', function () {
 
 		it(`should register multiple macros in the same program`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <add> cons X X;
 				Z := <sub> cons Y X
 			} write Z
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the macros were read correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add', 'sub']));
@@ -238,7 +185,7 @@ describe('ProgramManager', function () {
 
 		it(`should register multiple macros with the same name`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <add> cons X X;
 				while X {
@@ -247,12 +194,8 @@ describe('ProgramManager', function () {
 				}
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the macros were read correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
@@ -261,17 +204,13 @@ describe('ProgramManager', function () {
 
 		it(`should register nested nested macros`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <add> cons X (<add> cons X X)
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the variables were assigned correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
@@ -282,7 +221,7 @@ describe('ProgramManager', function () {
 	describe('rename variables', function () {
 		it(`should rename an internal root variable`, function () {
 			//Get an AST
-			let ast: AST_PROG = _expectParseProgram(`
+			let ast: AST_PROG = expectParseProgram(`
 			prog read A {
 				B := hd A;
 				Z := tl A;
@@ -297,7 +236,7 @@ describe('ProgramManager', function () {
 			mgr.renameVariable('Z', 'C');
 
 			//Get an AST
-			let expected: AST_PROG = _expectParseProgram(`
+			let expected: AST_PROG = expectParseProgram(`
 			prog read A {
 				B := hd A;
 				C := tl A;
@@ -312,7 +251,7 @@ describe('ProgramManager', function () {
 
 		it(`should rename an IO variable`, function () {
 			//Get an AST
-			let ast: AST_PROG = _expectParseProgram(`
+			let ast: AST_PROG = expectParseProgram(`
 			prog read A {
 				B := cons A A;
 				C := B
@@ -324,7 +263,7 @@ describe('ProgramManager', function () {
 			mgr.renameVariable('A', 'X');
 
 			//Get an AST
-			let expected: AST_PROG = _expectParseProgram(`
+			let expected: AST_PROG = expectParseProgram(`
 			prog read X {
 				B := cons X X;
 				C := B
@@ -336,7 +275,7 @@ describe('ProgramManager', function () {
 			mgr.renameVariable('C', 'Z');
 
 			//Get an AST
-			let expected2: AST_PROG = _expectParseProgram(`
+			let expected2: AST_PROG = expectParseProgram(`
 			prog read X {
 				B := cons X X;
 				Z := B
@@ -350,37 +289,30 @@ describe('ProgramManager', function () {
 	describe('replace macros', function () {
 		it(`should replace a basic macro`, function () {
 			//Get an AST
-			let [ast,err] = parseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := <macro> X
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(err).to.deep.equal([]);
-			expect(ast.complete).to.be.true;
 			//Get an AST
-			let [macroAst,macroErr] = parseProgram(`
+			let macroAst = expectParseProgram(`
 			macro read X {
 				X := cons X X;
 				X := cons X X;
 				Y := X
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(macroErr).to.deep.equal([]);
-			expect(macroAst.complete).to.be.true;
-
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Check that the macros were read correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['macro']));
 			expect(mgr.macroCounts).to.deep.equal(new Map([['macro', 1]]));
 
-			mgr.replaceMacro(macroAst as AST_PROG);
+			mgr.replaceMacro(macroAst);
 
 			//Get an AST
-			let [expectedAst,expectedErr] = parseProgram(`
+			let expectedAst = expectParseProgram(`
 			prog read X {
 				A := X;
 				A := cons A A;
@@ -389,10 +321,6 @@ describe('ProgramManager', function () {
 				Y := B
 			} write Y
 			`);
-			//Make sure there were no parsing errors
-			expect(expectedErr).to.deep.equal([]);
-			expect(expectedAst.complete).to.be.true;
-
 			expect(mgr.prog).to.deep.equal(expectedAst);
 		});
 	});
@@ -400,13 +328,13 @@ describe('ProgramManager', function () {
 	describe('display program', function () {
 		it(`should display an empty program`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 			} write X
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -421,7 +349,7 @@ describe('ProgramManager', function () {
 
 		it(`should display a simple conditional program`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				if X {
 					Y := 1
@@ -432,7 +360,7 @@ describe('ProgramManager', function () {
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -451,7 +379,7 @@ describe('ProgramManager', function () {
 
 		it(`should hide empty else statements`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := 0;
 				if X {
@@ -461,7 +389,7 @@ describe('ProgramManager', function () {
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -480,7 +408,7 @@ describe('ProgramManager', function () {
 
 		it(`should display numbers as trees`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Y := 0;
 				Y := 1;
@@ -492,7 +420,7 @@ describe('ProgramManager', function () {
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -512,7 +440,7 @@ describe('ProgramManager', function () {
 
 		it(`should display loops`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				Z := nil;
 				while X {
@@ -526,7 +454,7 @@ describe('ProgramManager', function () {
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -548,7 +476,7 @@ describe('ProgramManager', function () {
 
 		it(`should display macros`, function () {
 			//Get an AST
-			let ast = _expectParseProgram(`
+			let ast = expectParseProgram(`
 			prog read X {
 				while X {
 					Y := <add> cons X Y
@@ -557,7 +485,7 @@ describe('ProgramManager', function () {
 			`);
 
 			//Create a ProgramManager from the AST
-			let mgr = new ProgramManager(ast as AST_PROG);
+			let mgr = new ProgramManager(ast);
 
 			//Expected display representation
 			let expected = [
@@ -577,7 +505,7 @@ describe('ProgramManager', function () {
 		it(`should convert false to nil`, function () {
 			//Create a ProgramManager for the program
 			let mgr = new ProgramManager(
-				_expectParseProgram(`
+				expectParseProgram(`
 				prog read X {
 					Y := false
 				} write Y
@@ -587,7 +515,7 @@ describe('ProgramManager', function () {
 			mgr.toPure();
 
 			//The expected pure AST
-			let expected = _expectParseProgram(`
+			let expected = expectParseProgram(`
 			prog read X {
 				Y := nil
 			} write Y
@@ -599,7 +527,7 @@ describe('ProgramManager', function () {
 		it(`should convert true to cons nil nil`, function () {
 			//Create a ProgramManager for the program
 			let mgr = new ProgramManager(
-				_expectParseProgram(`
+				expectParseProgram(`
 				prog read X {
 					Y := true
 				} write Y
@@ -609,7 +537,7 @@ describe('ProgramManager', function () {
 			mgr.toPure();
 
 			//The expected pure AST
-			let expected = _expectParseProgram(`
+			let expected = expectParseProgram(`
 			prog read X {
 				Y := cons nil nil
 			} write Y
@@ -622,7 +550,7 @@ describe('ProgramManager', function () {
 			it(`should convert empty binary trees to nil`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := 0
 					} write Y
@@ -632,7 +560,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := nil
 				} write Y
@@ -644,7 +572,7 @@ describe('ProgramManager', function () {
 			it(`should convert numbers to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := 5
 					} write Y
@@ -654,7 +582,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons nil (cons nil (cons nil (cons nil (cons nil nil))))
 				} write Y
@@ -668,7 +596,7 @@ describe('ProgramManager', function () {
 			it(`should convert an empty list to nil`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := []
 					} write Y
@@ -678,7 +606,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := nil
 				} write Y
@@ -691,7 +619,7 @@ describe('ProgramManager', function () {
 			it(`should convert a list with 1 element to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := [3]
 					} write Y
@@ -701,7 +629,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons (cons nil cons nil cons nil nil) nil
 				} write Y
@@ -713,7 +641,7 @@ describe('ProgramManager', function () {
 			it(`should convert a list with multiple elements to nested cons with trailing nil`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := [3, <<<nil.nil>.<nil.nil>>.nil>]
 					} write Y
@@ -723,7 +651,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons (cons nil cons nil cons nil nil) cons (cons (cons (cons nil nil) (cons nil nil)) nil) nil
 				} write Y
@@ -737,7 +665,7 @@ describe('ProgramManager', function () {
 			it(`should convert a simple tree to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := <nil.nil>
 					} write Y
@@ -747,7 +675,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons nil nil
 				} write Y
@@ -759,7 +687,7 @@ describe('ProgramManager', function () {
 			it(`should convert a single layer tree to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := <2.nil>
 					} write Y
@@ -769,7 +697,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons (cons nil cons nil nil) nil
 				} write Y
@@ -781,7 +709,7 @@ describe('ProgramManager', function () {
 			it(`should convert nested trees to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := <<nil.<nil.nil>>.<nil.nil>>
 					} write Y
@@ -791,7 +719,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons (cons nil (cons nil nil)) (cons nil nil)
 				} write Y
@@ -803,7 +731,7 @@ describe('ProgramManager', function () {
 			it(`should convert nested trees to cons`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := <nil.<nil.<nil.<nil.<nil.nil>>>>>
 					} write Y
@@ -813,7 +741,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons nil (cons nil (cons nil (cons nil (cons nil nil))))
 				} write Y
@@ -827,7 +755,7 @@ describe('ProgramManager', function () {
 			it(`should convert empty switch to empty if`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						switch X { }
 					} write X
@@ -837,7 +765,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if nil {} else {}
 				} write X
@@ -850,7 +778,7 @@ describe('ProgramManager', function () {
 			it(`should convert empty switch's default to execute unconditionally`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						switch X {
 							default:
@@ -863,7 +791,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if nil { } else {
 						X := cons nil nil
@@ -878,7 +806,7 @@ describe('ProgramManager', function () {
 			it(`should convert switches to nested ifs`, function () {
 				//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						switch X {
 							case 2:
@@ -895,7 +823,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if <A> cons X (cons nil cons nil nil) {
 						Z := nil
@@ -917,7 +845,7 @@ describe('ProgramManager', function () {
 		describe(`Replace equals operator with the macro code`, function () {
 			it(`should replace equals operator in a condition`, function () {//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						if X = nil {
 							Y := cons nil nil
@@ -931,7 +859,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if (<equality> cons X nil) {
 						Y := cons nil nil
@@ -949,7 +877,7 @@ describe('ProgramManager', function () {
 
 			it(`should replace equals operator in a statement`, function () {//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						Y := <X=nil.nil>
 					} write Y
@@ -959,7 +887,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					Y := cons (<equality> cons X nil) nil
 				} write Y
@@ -973,7 +901,7 @@ describe('ProgramManager', function () {
 
 			it(`should replace equals operator in a switch input`, function () {//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						switch (X = cons nil nil) {
 							case nil:
@@ -988,7 +916,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if (<equality> cons (<equality> cons X cons nil nil) nil) {
 						Y := nil
@@ -1011,7 +939,7 @@ describe('ProgramManager', function () {
 
 			it(`should replace equals operator in a switch condition`, function () {//Create a ProgramManager for the program
 				let mgr = new ProgramManager(
-					_expectParseProgram(`
+					expectParseProgram(`
 					prog read X {
 						switch X {
 							case nil:
@@ -1026,7 +954,7 @@ describe('ProgramManager', function () {
 				mgr.toPure();
 
 				//The expected pure AST
-				let expected = _expectParseProgram(`
+				let expected = expectParseProgram(`
 				prog read X {
 					if (<equality> cons X nil) {
 						Y := nil

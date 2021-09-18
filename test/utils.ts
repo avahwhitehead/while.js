@@ -24,6 +24,19 @@ import { AST_TREE } from "../src/types/ast";
 //Useful functions
 
 /**
+ * Convert a program string to an AST_PROG object, expecting it to parse without issue.
+ * @param prog	The program string to convert
+ */
+export function expectParseProgram(prog: string): AST_PROG {
+	let [ast,err] = parseProgram(prog);
+	//Make sure there were no parsing errors
+	expect(err).to.deep.equal([]);
+	expect(ast.complete).to.be.true;
+	//Return the AST
+	return ast as AST_PROG;
+}
+
+/**
  * Convert a binary tree to its string representation (for displaying)
  * @param tree	The tree to convert
  */

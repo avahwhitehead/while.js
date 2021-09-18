@@ -18,6 +18,7 @@ import VariableManager from "./VariableManager";
 import NameGenerator from "./NameGenerator";
 import { BinaryTree } from "../types/Trees";
 import astEquals from "../tools/astEquals";
+import toPad, { ProgDataType } from "../tools/progAsData";
 
 /**
  * Reverse a list, and add it to the end of a stack.
@@ -737,5 +738,15 @@ export default class ProgramManager {
 			}
 		}
 		return root;
+	}
+
+	/**
+	 * Convert a program AST to the programs-as-data format.
+	 * The AST must be for a pure WHILE program.
+	 * @returns {ProgDataType}	The program-as-data representation of the program
+	 * @throws Error	Error if the program is not in pure WHILE format
+	 */
+	public toPad(): ProgDataType {
+		return toPad(this.prog);
 	}
 }
