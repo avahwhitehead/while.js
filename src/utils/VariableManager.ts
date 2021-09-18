@@ -12,8 +12,8 @@ export interface VariableManagerProps {
 
 /**
  * Handle the renaming of variables.
- * Use {@link VariableManager.add} to create new variable name mappings,
- * and {@link VariableManager.get} to read existing ones.
+ * Use {@link VariableNamespaceManager.add} to create new variable name/value mappings,
+ * and {@link VariableNamespaceManager.name} or {@link VariableNamespaceManager.index} to read existing ones.
  *
  * Namespaces are used to allow merging multiple programs where variable names may overlap.
  * Simply pass a string unique to each program to define groups of variable names.
@@ -21,15 +21,15 @@ export interface VariableManagerProps {
  * NOTE: Namespaces must be unique to EACH OCCURRENCE of a program merge.
  * This means the same program being merged twice in the same parent program MUST HAVE DIFFERENT NAMESPACES.
  * Duplicate namespaces carry the risk of overlapping variable names, and causing unexpected program results.
- * You may use {@link VariableManager.getNewNamespace} to generate unique namespace names.
- * The default namespace name is stored in {@link VariableManager.DEFAULT_NS}; passing this as a namespace parameter is
+ * You may use {@link VariableNamespaceManager.getNewNamespace} to generate unique namespace names.
+ * The default namespace name is stored in {@link VariableNamespaceManager.DEFAULT_NS}; passing this as a namespace parameter is
  * treated the same as passing {@code undefined} in its place
  */
-export default class VariableManager {
+export default class VariableNamespaceManager {
 	public static readonly DEFAULT_NS: string = 'default';
 
 	// Map of Namespace => (oldName => newName)
-	private readonly _variableMap: Map<string, Map<string, string>>;
+	private readonly _variableMap: Map<string, VariableManager>;
 	// Map of newName => [oldName, namespace]
 	private readonly _variableLookup: Map<string, [string, string]>;
 	private _varNameGenerator: NameGenerator;
@@ -39,7 +39,7 @@ export default class VariableManager {
 	 * @param opts		Constructor options
 	 */
 	constructor(opts?: VariableManagerProps) {
-		this._variableMap = new Map<string, Map<string, string>>();
+		this._variableMap = new Map<string, VariableManager>();
 		this._variableLookup = new Map<string, [string, string]>();
 		this._varNameGenerator = new NameGenerator(opts?.minVarLen);
 		this._namespaceGenerator = new NameGenerator();
@@ -59,8 +59,8 @@ export default class VariableManager {
 	 * 					The stored name when the variable exists in the store,
 	 * 					{@code newName} if provided, or a new name otherwise otherwise.
 	 */
-	public add(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS, newName?: string, force = false): string {
-		namespace = namespace || VariableManager.DEFAULT_NS;
+	public add(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS, newName?: string, force = false): string {
+		namespace = namespace || VariableNamespaceManager.DEFAULT_NS;
 
 		//Create a new name if one is not defined
 		if (newName === undefined) {
@@ -69,34 +69,58 @@ export default class VariableManager {
 
 		//Get the namespace's variable map
 		let variables = this._variableMap.get(namespace);
-		if (!variables) this._variableMap.set(namespace, (variables = new Map()));
+		if (!variables) this._variableMap.set(namespace, (variables = new VariableManager()));
 
 		//Return the new name if it has already been set
 		//Unless setting the new value is forced
-		if (variables.has(name)) {
-			if (!force) return variables.get(name)!;
+		if (variables.exists(name)) {
+			if (!force) return variables.name(name)!;
 
-			this._variableLookup.delete(variables.get(name)!);
-			variables.delete(name);
+			this._variableLookup.delete(variables.name(name));
+			variables.remove(name);
 		}
 
-		//Assign the variable's new name
-		variables.set(name, newName);
+		//Assign and return the variable's new name
+		variables.add(name, newName);
 		this._variableLookup.set(newName, [name, namespace])
-		//Return the variable's name
 		return newName;
 	}
 
 	/**
-	 * Get the new name of a variable from it's namespace and old name
+	 * Get the new name of a variable from it's namespace and old name.
+	 * @deprecated	Use {@link name} instead
 	 * @param name			The variable's old name
 	 * @param namespace		(Optional) The namespace in which to look for the variable.
 	 * 						Default is {@code "default"}.
 	 * @returns {string}	The new name of the variable, if defined
 	 * @returns {undefined}	If the variable has not been assigned a name
 	 */
-	public get(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS): string|undefined {
-		return this._variableMap.get(namespace || VariableManager.DEFAULT_NS)?.get(name);
+	public get(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): string|undefined {
+		return this.name(name, namespace)
+	}
+
+	/**
+	 * Get the new name of a variable from it's namespace and old name.
+	 * @param name			The variable's old name
+	 * @param namespace		(Optional) The namespace in which to look for the variable.
+	 * 						Default is {@code "default"}.
+	 * @returns {string}	The new name of the variable, if defined
+	 * @returns {undefined}	If the variable has not been assigned a name
+	 */
+	public name(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): string|undefined {
+		return this._variableMap.get(namespace || VariableNamespaceManager.DEFAULT_NS)?.name(name);
+	}
+
+	/**
+	 * Get the numerical value of a variable from it's namespace and old name.
+	 * @param name			The variable's old name
+	 * @param namespace		(Optional) The namespace in which to look for the variable.
+	 * 						Default is {@code "default"}.
+	 * @returns {string}	The new name of the variable, if defined
+	 * @returns {undefined}	If the variable has not been assigned a name
+	 */
+	public index(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): number|undefined {
+		return this._variableMap.get(namespace || VariableNamespaceManager.DEFAULT_NS)?.index(name);
 	}
 
 	/**
@@ -105,11 +129,11 @@ export default class VariableManager {
 	 * @param namespace		(Optional) The namespace from which to delete the variable.
 	 * 						Default is {@link VariableManager.DEFAULT_NS}.
 	 */
-	public delete(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS): void {
-		let variables: Map<string, string>|undefined = this._variableMap.get(namespace);
+	public delete(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): void {
+		let variables: VariableManager|undefined = this._variableMap.get(namespace || VariableNamespaceManager.DEFAULT_NS);
 		if (!variables) return;
-		this._variableLookup.delete(variables.get(name)!);
-		variables.delete(name);
+		this._variableLookup.delete(variables.name(name));
+		variables.remove(name);
 	}
 
 	/**
@@ -117,9 +141,10 @@ export default class VariableManager {
 	 * @param namespace		(Optional) The namespace to remove.
 	 * 						Default is {@link VariableManager.DEFAULT_NS}.
 	 */
-	public deleteNamespace(namespace: string|undefined = VariableManager.DEFAULT_NS): void {
-		for (let v of this._variableMap.get(namespace)?.keys() || []) {
-			this.delete(v, namespace);
+	public deleteNamespace(namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): void {
+		let mgr = this._variableMap.get(namespace || VariableNamespaceManager.DEFAULT_NS);
+		for (let v of mgr?.variables || []) {
+			mgr!.remove(v[0]);
 		}
 		this._variableMap.delete(namespace);
 	}
@@ -132,8 +157,8 @@ export default class VariableManager {
 	 * @returns {true}	If the variable exists in the given namespace
 	 * @returns {false}	Otherwise
 	 */
-	public exists(name: string, namespace: string|undefined = VariableManager.DEFAULT_NS): boolean {
-		return this.get(name, namespace || VariableManager.DEFAULT_NS) !== undefined;
+	public exists(name: string, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): boolean {
+		return this.name(name, namespace || VariableNamespaceManager.DEFAULT_NS) !== undefined;
 	}
 
 	/**
@@ -190,5 +215,88 @@ export default class VariableManager {
 			name = this._varNameGenerator.next();
 		} while (this._variableLookup.has(name));
 		return name;
+	}
+}
+
+/**
+ * Class to convert variables to numerical equivalents
+ */
+export class VariableManager {
+	private _ptr: number;
+	private readonly _variables: string[];
+	private readonly _names: string[];
+
+	public constructor() {
+		this._variables = [];
+		this._names = [];
+		this._ptr = 0;
+	}
+
+	/**
+	 * Assign a variable to a value.
+	 * @param variable	The name of the variable
+	 * @param name		(Optional) New name to assign to the variable.
+	 * 					Defaults to the variable's current name
+	 * @param val		(Optional) Value to assign to the variable.
+	 * 					Defaults to the next available value
+	 */
+	public add(variable: string, name?: string, val?: number): number {
+		name = name || variable;
+		if (val !== undefined) {
+			this._variables.splice(val, 0, variable);
+			this._names.splice(val, 0, name);
+			return val;
+		} else if (!this.exists(variable)) {
+			let i = this._ptr++;
+			this._variables.splice(i, 0, variable);
+			this._names.splice(i, 0, name);
+			return i;
+		}
+		return this.index(variable);
+	}
+
+	/**
+	 * Unlink a variable from its value
+	 * @param variable	The variable to unlink
+	 */
+	public remove(variable: string): this {
+		let index = this.index(variable);
+		if (index > -1) {
+			this._variables.splice(index, 1);
+			this._names.splice(index, 1);
+		}
+		return this;
+	}
+
+	/**
+	 * Whether or not a variable exists
+	 * @param variable	The variable name
+	 */
+	public exists(variable: string): boolean {
+		return this.index(variable) > -1;
+	}
+
+	/**
+	 * Get the index (numerical) value of a variable
+	 * @param variable	The variable name
+	 */
+	public index(variable: string): number {
+		return this._variables.indexOf(variable);
+	}
+
+	/**
+	 * Get the index (numerical) value of a variable
+	 * @param variable	The variable name
+	 */
+	public name(variable: string): string {
+		return this._names[this._variables.indexOf(variable)];
+	}
+
+	/**
+	 * List of all the variables, in order
+	 */
+	get variables(): [string,string][] {
+		return this._names.map((v,i) => [v, this._names[i]]);
+		// return this._variables.map((v,i) => [v, this._names[i]]);
 	}
 }
