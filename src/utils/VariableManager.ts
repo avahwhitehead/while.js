@@ -87,6 +87,25 @@ export default class VariableNamespaceManager {
 	}
 
 	/**
+	 * Add a variable to the manager, and automatically assign it a name
+	 * @param val		Numerical value representing the variable
+	 * @param namespace	(Optional) Namespace to add the variable to.
+	 * 					Defaults to {@link VariableNamespaceManager.DEFAULT_NS}
+	 */
+	public addAnonymous(val: number, namespace: string|undefined = VariableNamespaceManager.DEFAULT_NS): string {
+		namespace = namespace || VariableNamespaceManager.DEFAULT_NS;
+
+		let variables = this._variableMap.get(namespace);
+		if (!variables) this._variableMap.set(namespace, (variables = new VariableManager()));
+
+		if (variables.exists(val)) return variables.name(val);
+
+		let name = this.getNextVarName();
+		this.add(name, namespace, name);
+		return name;
+	}
+
+	/**
 	 * Get the new name of a variable from it's namespace and old name.
 	 * @deprecated	Use {@link name} instead
 	 * @param name			The variable's old name
@@ -259,8 +278,11 @@ export class VariableManager {
 	 * Unlink a variable from its value
 	 * @param variable	The variable to unlink
 	 */
-	public remove(variable: string): this {
-		let index = this.index(variable);
+	public remove(variable: string|number): this {
+		let index: number;
+		if (typeof variable === 'number') index = variable;
+		else index = this.index(variable);
+
 		if (index > -1) {
 			this._variables.splice(index, 1);
 			this._names.splice(index, 1);
@@ -272,7 +294,8 @@ export class VariableManager {
 	 * Whether or not a variable exists
 	 * @param variable	The variable name
 	 */
-	public exists(variable: string): boolean {
+	public exists(variable: string|number): boolean {
+		if (typeof variable === 'number') return this._variables[variable] !== undefined;
 		return this.index(variable) > -1;
 	}
 
@@ -288,8 +311,11 @@ export class VariableManager {
 	 * Get the index (numerical) value of a variable
 	 * @param variable	The variable name
 	 */
-	public name(variable: string): string {
-		return this._names[this._variables.indexOf(variable)];
+	public name(variable: string|number): string {
+		let index: number;
+		if (typeof variable === 'number') index = variable;
+		else index = this._variables.indexOf(variable);
+		return this._names[index];
 	}
 
 	/**

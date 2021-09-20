@@ -2,11 +2,11 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import { expectParseProgram } from "../utils";
-import toPad, { ProgDataType } from "../../src/tools/progAsData";
+import toPad, { fromPad, ProgDataType } from "../../src/tools/progAsData";
 
 chai.config.truncateThreshold = 0;
 
-describe('Programs as Data', function () {
+describe('To Programs as Data', function () {
 	describe('Basic conversion', function () {
 		it(`should correctly convert variable values`, function () {
 			//Create a ProgramManager for the program
@@ -229,6 +229,231 @@ describe('Programs as Data', function () {
 
 			//Expect the program-as-data result
 			expect(toPad(ast)).to.deep.equal(expected);
+		});
+	});
+});
+
+describe('From Programs as Data', function () {
+	describe('Basic conversion', function () {
+		it(`should correctly convert variable values`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['var', 0]]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := A
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert nil`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['quote', 'nil']]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := nil
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert hd`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['hd', ['var', 0]]]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := hd A
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert tl`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['tl', ['var', 0]]]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := tl A
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert if`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				['if', ['var', 0], [], []]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					if A {}
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert if-else`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				['if', ['var', 0], [], []]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					if A {} else {}
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`should correctly convert while`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				['while', ['var', 0], []]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					while A { }
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+	});
+
+	describe('Program conversion', function () {
+		it(`[Example program from LoC2]`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['quote','nil']],
+				['while', ['var',0], [
+					[':=', 1, ['cons', ['hd', ['var', 0]], ['var', 1]]],
+					[':=', 0, ['tl', ['var', 0]]]
+				]]
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := nil;
+					while A {
+						B := cons hd A B;
+						A := tl A
+					}
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`add.while`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['hd', ['var', 0]]],
+				[':=', 2, ['tl', ['var', 0]]],
+				['while', ['var', 1], [
+					[':=', 2, ['cons', ['quote', 'nil'], ['var', 2]]],
+					[':=', 1, ['tl', ['var', 1]]]
+				]]
+			], 2];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := hd A;
+					C := tl A;
+					while B {
+						C := cons nil C;
+						B := tl B
+					}
+				} write C
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`count.while`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [
+				[':=', 1, ['quote', 'nil']],
+				['while', ['var', 0], [
+					[':=', 2, ['hd', ['var', 0]]],
+					[':=', 0, ['tl', ['var', 0]]],
+
+					['while', ['var', 2], [
+						[':=', 1, ['cons', ['quote', 'nil'], ['var', 1]]],
+						[':=', 2, ['tl', ['var', 2]]],
+					]],
+				]],
+			], 1];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A {
+					B := 0;
+					while A {
+						C := hd A;
+						A := tl A;
+
+						while C {
+							B := cons nil B;
+							C := tl C
+						}
+					}
+				} write B
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+
+		it(`identity.while`, function () {
+			//prog-as-data input
+			let pad: ProgDataType = [0, [], 0];
+
+			//The expected AST to be produced
+			let expected = expectParseProgram(`
+				prog read A { } write A
+			`);
+
+			//Expect the program-as-data result
+			expect(fromPad(pad)).to.deep.equal(expected);
 		});
 	});
 });

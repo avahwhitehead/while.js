@@ -19,7 +19,9 @@ import {
 	SYMBOL_TOKEN_EXTD,
 	SYMBOL_TYPE_EXTD,
 } from "../src/types/extendedTokens";
-import { AST_TREE } from "../src/types/ast";
+import { AST_PROG, AST_TREE } from "../src/types/ast";
+import { parseProgram } from "../src/linter";
+import { expect } from "chai";
 
 //Useful functions
 
@@ -220,9 +222,9 @@ export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYP
 	};
 }
 
-export function nmbr(v: number, pos: Position): NUMBER_TYPE;
-export function nmbr(v: number, pos: number, col: number): NUMBER_TYPE;
-export function nmbr(v: number, pos: Position|number, col?: number): NUMBER_TYPE {
+export function nmbr(v: number, t: string, pos: Position): NUMBER_TYPE;
+export function nmbr(v: number, t: string, pos: number, col: number): NUMBER_TYPE;
+export function nmbr(v: number, t: string, pos: Position|number, col?: number): NUMBER_TYPE {
 	let length: number;
 	if (v === 0) length = 1;
 	else length = Math.floor(Math.log10(v)) + 1;
@@ -232,7 +234,7 @@ export function nmbr(v: number, pos: Position|number, col?: number): NUMBER_TYPE
 	return {
 		type: 'number',
 		value: v,
-		//@ts-ignore
+		token: t,
 		pos: startPos,
 		endPos,
 		length

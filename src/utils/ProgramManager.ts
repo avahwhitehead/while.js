@@ -18,7 +18,7 @@ import VariableManager from "./VariableManager";
 import NameGenerator from "./NameGenerator";
 import { BinaryTree } from "../types/Trees";
 import astEquals from "../tools/astEquals";
-import toPad, { ProgDataType } from "../tools/progAsData";
+import toPad, { fromPad, ProgDataType } from "../tools/progAsData";
 
 /**
  * Reverse a list, and add it to the end of a stack.
