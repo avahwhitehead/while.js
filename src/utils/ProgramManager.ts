@@ -57,6 +57,15 @@ export default class ProgramManager {
 	private _macroPositions: Map<string, MacroPosition[]>;
 
 	/**
+	 * Create a ProgramManager object from a program-as-data object
+	 * @param data		The PaD object representing a program
+	 * @param props		(Optional) program manager construction options to use when creating the ProgramManager
+	 */
+	public static fromPad(data: ProgDataType, props?: ProgramManagerProps): ProgramManager {
+		return new ProgramManager(fromPad(data), props);
+	}
+
+	/**
 	 * @param prog		The program AST
 	 * @param props		Additional constructor options
 	 */
@@ -180,6 +189,11 @@ export default class ProgramManager {
 		this.reanalyse();
 	}
 
+	/**
+	 * Rename all occurrences of a variable in the program
+	 * @param oldname	The old (current) name of the variable
+	 * @param newname	The new name of the variable
+	 */
 	public renameVariable(oldname: string, newname: string) {
 		//Get all the positions where the variable is referenced
 		let positions = this._variablePositions.get(oldname);
@@ -198,6 +212,11 @@ export default class ProgramManager {
 		this._variablePositions.set(newname, newpos);
 	}
 
+	/**
+	 * Produce a program string from the stored program AST
+	 * @param indent	The character(s) to use to indicate a single indent.
+	 * 					Defaults to {@code '\t'} (a tab character).
+	 */
 	public displayProgram(indent: string = '\t'): string {
 		let r: [number, string][] = [[0, `${this._prog.name.value} read ${this._prog.input.value} {`]];
 		if (this._prog.body.length === 0) r.push([0, '']);

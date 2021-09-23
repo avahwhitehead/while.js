@@ -2,7 +2,13 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import { expectParseProgram } from "../utils";
-import toPad, { fromPad, ProgDataType } from "../../src/tools/progAsData";
+import toPad, {
+	displayPad,
+	fromPad,
+	HWHILE_DISPLAY_FORMAT,
+	ProgDataType,
+	PURE_DISPLAY_FORMAT
+} from "../../src/tools/progAsData";
 
 chai.config.truncateThreshold = 0;
 
@@ -454,6 +460,138 @@ describe('From Programs as Data', function () {
 
 			//Expect the program-as-data result
 			expect(fromPad(pad)).to.deep.equal(expected);
+		});
+	});
+});
+
+describe('Display Programs as Data', function () {
+	it(`should correctly convert assignment and nil`, function () {
+		let pad: ProgDataType = [0, [
+			[':=', 1, ['quote', 'nil']]
+		], 1];
+
+		expect(displayPad(pad, HWHILE_DISPLAY_FORMAT)).to.deep.equal(``
+			+ `[0, [\n`
+			+ `    [@:=, 1, [@quote, nil]]\n`
+			+ `], 1]\n`
+		);
+	});
+
+	it(`should correctly convert operations (hd/tl/cons)`, function () {
+		let pad: ProgDataType = [0, [
+			[':=', 1, ['hd', ['var', 0]]],
+			[':=', 2, ['tl', ['var', 0]]],
+			[':=', 3, ['cons', ['var', 1], ['var', 2]]],
+		], 3];
+
+		expect(displayPad(pad, HWHILE_DISPLAY_FORMAT)).to.deep.equal(``
+			+ `[0, [\n`
+			+ `    [@:=, 1, [@hd, [@var, 0]]],\n`
+			+ `    [@:=, 2, [@tl, [@var, 0]]],\n`
+			+ `    [@:=, 3, [@cons, [@var, 1], [@var, 2]]]\n`
+			+ `], 3]\n`
+		);
+	});
+
+	it(`should correctly convert while loops and conditions`, function () {
+		let pad: ProgDataType = [0, [
+			[':=', 1, ['quote', 'nil']],
+			['while', ['var', 0], [
+				[':=', 1, ['cons', ['quote', 'nil'], ['var', 1]]],
+				['if', ['hd', ['var', 0]], [
+					[':=', 0, ['hd', ['var', 0]]]
+				], [
+					[':=', 0, ['tl', ['var', 0]]]
+				]]
+			]]
+		], 1];
+
+		expect(displayPad(pad, HWHILE_DISPLAY_FORMAT)).to.deep.equal(``
+			+ `[0, [\n`
+			+ `    [@:=, 1, [@quote, nil]],\n`
+			+ `    [@while, [@var, 0], [\n`
+			+ `        [@:=, 1, [@cons, [@quote, nil], [@var, 1]]],\n`
+			+ `        [@if, [@hd, [@var, 0]], [\n`
+			+ `            [@:=, 0, [@hd, [@var, 0]]]\n`
+			+ `        ], [\n`
+			+ `            [@:=, 0, [@tl, [@var, 0]]]\n`
+			+ `        ]]\n`
+			+ `    ]]\n`
+			+ `], 1]\n`
+		);
+	});
+
+	it(`[Example program from LoC2]`, function () {
+		let pad: ProgDataType = [0, [
+			[':=', 1, ['quote','nil']],
+			['while', ['var',0], [
+				[':=', 1, ['cons', ['hd', ['var', 0]], ['var', 1]]],
+				[':=', 0, ['tl', ['var', 0]]]
+			]]
+		], 1];
+
+		expect(displayPad(pad, HWHILE_DISPLAY_FORMAT)).to.deep.equal(``
+			+ `[0, [\n`
+			+ `    [@:=, 1, [@quote, nil]],\n`
+			+ `    [@while, [@var, 0], [\n`
+			+ `        [@:=, 1, [@cons, [@hd, [@var, 0]], [@var, 1]]],\n`
+			+ `        [@:=, 0, [@tl, [@var, 0]]]\n`
+			+ `    ]]\n`
+			+ `], 1]\n`
+		);
+	});
+
+	describe(`Follow padDisplayFormat options`, function () {
+		it(`should follow pure formatting options`, function () {
+			let pad: ProgDataType = [0, [
+				['if', ['var', 0], [
+					['while', ['var', 0], [
+						[':=', 1, ['cons', ['hd', ['var', 0]], ['tl', ['var', 0]]]],
+						[':=', 0, ['tl', ['var', 0]]]
+					]],
+				], [
+					[':=', 1, ['quote', 'nil']],
+				]]
+			], 1];
+
+			expect(displayPad(pad, PURE_DISPLAY_FORMAT)).to.deep.equal(``
+				+ `[0, [\n`
+				+ `    [if, [var, 0], [\n`
+				+ `        [while, [var, 0], [\n`
+				+ `            [:=, 1, [cons, [hd, [var, 0]], [tl, [var, 0]]]],\n`
+				+ `            [:=, 0, [tl, [var, 0]]]\n`
+				+ `        ]]\n`
+				+ `    ], [\n`
+				+ `        [:=, 1, [quote, nil]]\n`
+				+ `    ]]\n`
+				+ `], 1]\n`
+			);
+		});
+
+		it(`should follow HWhile formatting options`, function () {
+			let pad: ProgDataType = [0, [
+				['if', ['var', 0], [
+					['while', ['var', 0], [
+						[':=', 1, ['cons', ['hd', ['var', 0]], ['tl', ['var', 0]]]],
+						[':=', 0, ['tl', ['var', 0]]]
+					]],
+				], [
+					[':=', 1, ['quote', 'nil']],
+				]]
+			], 1];
+
+			expect(displayPad(pad, HWHILE_DISPLAY_FORMAT)).to.deep.equal(``
+				+ `[0, [\n`
+				+ `    [@if, [@var, 0], [\n`
+				+ `        [@while, [@var, 0], [\n`
+				+ `            [@:=, 1, [@cons, [@hd, [@var, 0]], [@tl, [@var, 0]]]],\n`
+				+ `            [@:=, 0, [@tl, [@var, 0]]]\n`
+				+ `        ]]\n`
+				+ `    ], [\n`
+				+ `        [@:=, 1, [@quote, nil]]\n`
+				+ `    ]]\n`
+				+ `], 1]\n`
+			);
 		});
 	});
 });

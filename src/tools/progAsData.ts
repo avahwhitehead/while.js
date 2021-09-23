@@ -1,5 +1,6 @@
 import VariableNamespaceManager, { VariableManager } from "../utils/VariableManager";
 import { AST_CMD, AST_EXPR, AST_PROG } from "../types/ast";
+import { StringBuilder } from "../utils/StringBuilder";
 
 /**
  * Data type for the programs-as-data representation of a WHILE expression.
@@ -301,4 +302,280 @@ function _exprFromPad(data: DataExprType, manager: VariableNamespaceManager): AS
 	//Return the produced expression
 	//This will be the only element of the `root` array
 	return root[0];
+}
+
+/**
+ * Display options for displaying prog-as-data objects.
+ */
+interface PadDisplayFormat {
+	/**
+	 * Text to display in place of 'assign' objects
+	 */
+	assign: string;
+	/**
+	 * Text to display in place of 'if' objects
+	 */
+	if: string;
+	/**
+	 * Text to display in place of 'while' objects
+	 */
+	while: string;
+	/**
+	 * Text to display in place of 'quote' objects
+	 */
+	quote: string;
+
+	/**
+	 * Text to display in place of 'cons' objects
+	 */
+	cons: string;
+	/**
+	 * Text to display in place of 'hd' objects
+	 */
+	hd: string;
+	/**
+	 * Text to display in place of 'tl' objects
+	 */
+	tl: string;
+	/**
+	 * Text to display in place of 'var' objects
+	 */
+	var: string;
+}
+/**
+ * Predefined options for displaying PaD objects in a "pure" format
+ */
+export const PURE_DISPLAY_FORMAT: PadDisplayFormat = {
+	assign: ':=',
+	if: 'if',
+	while: 'while',
+
+	quote: 'quote',
+	var: 'var',
+	cons: 'cons',
+	hd: 'hd',
+	tl: 'tl',
+};
+/**
+ * Predefined options for displaying PaD objects in the same format as HWhile
+ */
+export const HWHILE_DISPLAY_FORMAT: PadDisplayFormat = {
+	assign: '@:=',
+	if: '@if',
+	while: '@while',
+
+	quote: '@quote',
+	var: '@var',
+	cons: '@cons',
+	hd: '@hd',
+	tl: '@tl',
+};
+
+/**
+ * Type definition for the commandStack used to convert prog-as-data objects
+ */
+interface StackObject {
+	/**
+	 * The prog-as-data object to evaluate at this point in the stack
+	 */
+	data: DataBodyType|DataExprType;
+	/**
+	 * The current "level" of iteration through this object.
+	 * Used to differentiate between different arguments
+	 */
+	level: number;
+	/**
+	 * (Optional) terminating string to add after this object has been displayed
+	 */
+	terminator?: string;
+}
+
+/**
+ * Produce a program string from the stored program AST
+ * @param data		The program-as-data object to display
+ * @param format	Formatting options to use to display the text
+ * @param indent	The character(s) to use to indicate a single indent.
+ * 					Defaults to 4 spaces.
+ */
+export function displayPad(data: ProgDataType, format: PadDisplayFormat, indent: string = '    '): string {
+	//Make a builder to build up the output string
+	let builder: StringBuilder = new StringBuilder({indent: indent});
+	//Make a command stack to allow for iterative traversal through the pad tree
+	const commandStack: StackObject[] = [];
+
+	//Display the opening "[0, "
+	builder.add(`[`).add(data[0]).add(', ');
+
+	//Display the body opening paren, and add the body to the stack for evaluation
+	_displayBody(data[1], commandStack, builder);
+	//Evaluate the stack until complete
+	_evalDisplayStack(commandStack, builder, format);
+	//Display the body closing paren
+	_displayBodyClose(data[1], builder);
+
+	//Display the closing ", 1]"
+	builder.add(`, `).add(data[2]).add(`]`);
+	//Add a trailing new line
+	builder.break();
+
+	//Return the produced element as a string
+	return builder.toString();
+}
+
+/**
+ * Display the opening square bracket for a body block, indent the output, and add all the body's commands to the stack.
+ * A trailing comma is added after each command, except the final one
+ * @param data			The body to evaluate
+ * @param commandStack	Command stack to use
+ * @param builder		String builder to use
+ */
+function _displayBody(data: DataBodyType[], commandStack: StackObject[], builder: StringBuilder): void {
+	//Open the body's bracket
+	builder.add('[');
+	if (data.length > 0) {
+		//Only add a line break if the body is non-empty
+		builder.break().indent();
+		//Add the final element to the top of the stack
+		commandStack.push({data: data[data.length - 1], level: 0});
+		//Add the rest of the elements to the stack (in reverse order) with trailing commas
+		for (let i = data.length - 2; i >= 0; i--) {
+			commandStack.push({
+				data: data[i],
+				level: 0,
+				terminator: ','
+			});
+		}
+	}
+}
+
+/**
+ * Display the closing bracket (and optionally dedent) to a code body.
+ * @param data		The data object being closed
+ * @param builder	String builder to use
+ */
+function _displayBodyClose(data: DataBodyType[], builder: StringBuilder): void {
+	if (data.length > 0) builder.dedent();
+	builder.add(`]`);
+}
+
+/**
+ * Evaluate the {@code commandStack} object to render a programs-as-data object as a string
+ * @param commandStack	The command stack to evaluate
+ * @param builder		The
+ * @param format		prog-as-data formatting options
+ */
+function _evalDisplayStack(commandStack: StackObject[], builder: StringBuilder, format: PadDisplayFormat): void {
+	//Loop until the stack is empty
+	while (commandStack.length > 0) {
+		//Pop the element off the top of the stack
+		let currLevel: StackObject = commandStack.pop()!;
+		let data = currLevel.data;
+
+		//Open the list's bracket if this is the first time the element is reached
+		if (currLevel.level === 0) builder.add('[');
+		//If the list has been completely displayed, end here
+		if (currLevel.level >= data.length) {
+			//Close the list's bracket
+			builder.add(']');
+			//Display the terminating symbols, if requested
+			if (currLevel.terminator) builder.add(currLevel.terminator);
+			//Add a terminating linebreak if the object is a command
+			if (data[0] === ':=' || data[0] === 'if' || data[0] === 'while') builder.break();
+			//Travel down the stack
+			continue;
+		}
+
+		//The format of the rest of the elements is dependent on the type of element
+		switch (data[0]) {
+			case ":=":
+				//Display ":=, 0, "
+				builder.add(format.assign).add(', ').add(data[1]).add(', ');
+				//Complete next time this is the top of the stack
+				currLevel.level = 3;
+				commandStack.push(currLevel);
+				//Display the argument next
+				commandStack.push({data:data[2], level: 0});
+				break;
+			case "while":
+			case "if":
+				if (currLevel.level === 0) {
+					//Display "while, " or "if, "
+					builder
+						.add(data[0] === 'while' ? format.while : format.if)
+						.add(', ');
+					//Display the first body next time this is the top of the stack
+					currLevel.level = 1;
+					commandStack.push(currLevel);
+					//Display the condition next
+					commandStack.push({data:data[1], level: 0});
+				} else if (currLevel.level === 1) {
+					//Display a comma between the expression and body start
+					builder.add(', ');
+					//Perform the next step next time this is the top of the stack
+					currLevel.level = 2;
+					commandStack.push(currLevel);
+					//Display the loop body (or if-true body) next
+					_displayBody(data[2], commandStack, builder);
+				} else if (data[0] === 'if' && currLevel.level === 2) {
+					//Close the body list and add a training command
+					_displayBodyClose(data[2], builder);
+					builder.add(', ');
+					//Close the body the next time this is the top of the stack
+					currLevel.level = 3;
+					commandStack.push(currLevel);
+					//Display the else block
+					_displayBody(data[3], commandStack, builder);
+				} else {
+					//Close the body list
+					_displayBodyClose(data[2], builder);
+					//Complete on the next iteration
+					currLevel.level = 4;
+					commandStack.push(currLevel);
+				}
+				break;
+			case "var":
+			case "quote":
+				//Display "var, 0" or "quote, nil"
+				builder
+					.add(data[0] === 'var' ? format.var : format.quote)
+					.add(', ').add(data[1]);
+				//Complete on the next iteration
+				currLevel.level = 2;
+				commandStack.push(currLevel);
+				break;
+			case "cons":
+				if (currLevel.level === 0) {
+					//Display "cons, "
+					builder.add(format.cons).add(', ');
+					//Display the second argument the next time this is the top of the stack
+					currLevel.level = 2;
+					commandStack.push(currLevel);
+					//Display the first argument on the next iteration
+					commandStack.push({data:data[1], level: 0});
+				} else {
+					//Add a comma between the arguments
+					builder.add(', ');
+					//Complete next time this is the top of the stack
+					currLevel.level = 3;
+					commandStack.push(currLevel);
+					//Display the second argument next iteration
+					commandStack.push({data:data[2], level: 0});
+				}
+				break;
+			case "hd":
+			case "tl":
+				//Display "hd, " or "tl, "
+				builder
+					.add(data[0] === 'hd' ? format.hd : format.tl)
+					.add(', ');
+				//Complete next time this is at the top of the stack
+				currLevel.level = 2;
+				commandStack.push(currLevel);
+				//Display the argument on the next iteration
+				commandStack.push({data:data[1], level: 0});
+				break;
+			default:
+				throw new Error(`Unknown data type "${data[0]}"`);
+		}
+	}
 }
