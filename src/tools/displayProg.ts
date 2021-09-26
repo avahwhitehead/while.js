@@ -1,79 +1,82 @@
 import { AST_CMD, AST_EXPR, AST_PROG } from "../types/ast";
 import { BinaryTree } from "../types/Trees";
+import { StringBuilder } from "../utils/StringBuilder";
 
 /**
  * Produce a program string from the stored program AST
+ * @param prog		The program AST to display
  * @param indent	The character(s) to use to indicate a single indent.
  * 					Defaults to {@code '\t'} (a tab character).
  */
 export default function displayProgram(prog: AST_PROG, indent: string = '\t'): string {
-	let r: [number, string][] = [[0, `${prog.name.value} read ${prog.input.value} {`]];
-	if (prog.body.length === 0) r.push([0, '']);
-	else r.push(..._displayBody(prog.body, 1));
-	r.push([0, `} write ${prog.output.value}`]);
-	return r.map(e => indent.repeat(e[0]) + e[1]).join('\n');
+	let stringBuilder = new StringBuilder({indent: indent});
+	stringBuilder
+		.add(`${prog.name.value} read ${prog.input.value} {`)
+		.break();
+
+	if (prog.body.length === 0) stringBuilder.break();
+	else _displayBody(prog.body, stringBuilder);
+
+	stringBuilder.add(`} write ${prog.output.value}`);
+	return stringBuilder.toString();
 }
 
 /**
  * Convert a list of AST commands to a program string
- * @param body		The list of commands to convert
- * @param indent	The current indent level
- * @returns	{[number, string][]} List of lists, where each sublist represents a line in the program.
- * 							The first element is the indent level of the line, and the second element is the line itself.
- * @private
+ * @param body			The list of commands to convert
+ * @param builder	String Builder used to build the program
  */
-function _displayBody(body: AST_CMD[], indent: number): [number, string][] {
-	let res: [number, string][] = [];
+function _displayBody(body: AST_CMD[], builder: StringBuilder): void {
+	builder.indent();
 	for (let [i, cmd] of body.entries()) {
 		//Convert each command to a string
-		res.push(..._displayCmd(cmd, indent));
+		_displayCmd(cmd, builder);
 		//Add a line separator to the end of every line except the last one
-		if (i < body.length - 1) res[res.length - 1][1] += ';'
+		if (i < body.length - 1) builder.add(';');
+		builder.break();
 	}
-	return res;
+	builder.dedent();
 }
 
 /**
  * Convert a single AST command to a program string
  * @param cmd		The command to convert
- * @param indent	The current indent level
- * @returns	{[number, string][]} List of lists, where each sublist represents a line in the program.
- * 							The first element is the indent level of the line, and the second element is the line itself.
- * @private
+ * @param builder	String Builder used to build the program
  */
-function _displayCmd(cmd: AST_CMD, indent: number): [number, string][] {
-	let r: [number, string][] = [];
+function _displayCmd(cmd: AST_CMD, builder: StringBuilder): void {
 	switch (cmd.type) {
 		case "assign":
-			let s: string;
 			//Add a space after the assignment operator only if the expression doesn't already add one
-			if (_displayExpr(cmd.arg).charAt(0) === ' ') s = `${cmd.ident.value} :=${(_displayExpr(cmd.arg))}`;
-			else s = `${cmd.ident.value} := ${(_displayExpr(cmd.arg))}`;
-			return [[indent, s]];
+			let expr = _displayExpr(cmd.arg);
+			builder.add(cmd.ident.value)
+			if (expr.charAt(0) === ' ') builder.add(' :=').add(expr);
+			else builder.add(' := ').add(expr);
+			return;
 		case "cond":
 			//The if statement and body
-			r.push([indent, `if ${_displayExpr(cmd.condition)} {`]);
-			r.push(..._displayBody(cmd.if, indent + 1));
+			builder.add(`if `).add(_displayExpr(cmd.condition)).add(' {').break();
+			_displayBody(cmd.if, builder);
 			//Display the else statement only if non-empty
 			if (cmd.else.length > 0) {
-				r.push([indent, `} else {`]);
-				r.push(..._displayBody(cmd.else, indent + 1));
+				builder.add(`} else {`).break();
+				_displayBody(cmd.else, builder);
 			}
-			r.push([indent, `}`]);
-			return r;
+			builder.add('}');
+			return;
 		case "loop":
-			r.push([indent, `while ${_displayExpr(cmd.condition)} {`]);
-			r.push(..._displayBody(cmd.body, indent + 1));
-			r.push([indent, `}`]);
-			return r;
+			builder.add(`while `).add(_displayExpr(cmd.condition)).add(` {`).break();
+			_displayBody(cmd.body, builder);
+			builder.add(`}`);
+			return;
 		case "switch":
-			r.push([indent, `switch (${_displayExpr(cmd.condition)}) {`]);
+			builder.add(`switch `).add(_displayExpr(cmd.condition)).add(` {`).break();
+			builder.indent();
 			for (let c of cmd.cases) {
-				r.push([indent + 1, `case ${_displayExpr(c.cond)}:`]);
-				r.push(..._displayBody(c.body, indent + 2));
+				builder.add('case ').add(_displayExpr(c.cond)).add(':').break();
+				_displayBody(c.body, builder);
 			}
-			r.push([indent, `}`]);
-			return r;
+			builder.push('}').dedent();
+			return;
 	}
 }
 
@@ -121,15 +124,16 @@ function _displayExpr(expr: AST_EXPR, brackets?: boolean): string {
 }
 
 /**
- * Convert a binary tree to a program string representation
+ * Convert a binary tree to a program string representation.
+ * By default, trees are displayed as cons operations.
  * @param tree		The list of commands to convert
  * @param pre		The string to use to "open" a tree
  * @param sep		The string to use to separate the two tree nodes
  * @param post		The string to use to "close" the tree
+ * @example {@code displayTree(tn(5), '<', '.', '>')}	Displays the tree in <a.b> format
  * @returns {string}	The tree as a string
  * @private
  */
-// function _displayTree(tree: BinaryTree, pre='<', sep='.', post='>'): string {
 function _displayTree(tree: BinaryTree, pre='cons ', sep=' ', post=''): string {
 	if (tree === null) return 'nil';
 

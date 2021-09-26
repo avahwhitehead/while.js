@@ -22,7 +22,7 @@ export class StringBuilder {
 	private _level: number;
 	private _props: StringBuilderProps;
 
-	constructor(props: Partial<StringBuilderProps>) {
+	constructor(props: Partial<StringBuilderProps> = {}) {
 		this._level = 0;
 		this._lines = [[0, '']];
 		this._props = {
@@ -47,7 +47,7 @@ export class StringBuilder {
 	 */
 	public dedent(): this {
 		if (this._level > 0) this._level--;
-		this._lines[this._lines.length - 1][0]--;
+		this._lines[this._lines.length - 1][0] = this._level;
 		return this;
 	}
 
