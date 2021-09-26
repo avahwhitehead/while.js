@@ -52,6 +52,15 @@ describe('Equality Macro', function () {
 
 			expect(actual).to.deep.equal(TRUE);
 		});
+		it(`[1, [5, 4, 2], 4]`, function () {
+			let interpreter: Interpreter = new Interpreter(EQUALS_AST, t(
+				a(1, a(5, 4, 2), 1),
+				a(1, a(5, 4, 2), 1)
+			));
+			let actual: BinaryTree = interpreter.run();
+
+			expect(actual).to.deep.equal(TRUE);
+		});
 	});
 
 	describe('Different', function () {
@@ -81,6 +90,15 @@ describe('Equality Macro', function () {
 		});
 		it(`[5, 6, 8, 8]`, function () {
 			let interpreter: Interpreter = new Interpreter(EQUALS_AST, t(a(5, 6, 7, 8), a(5, 6, 8, 8)));
+			let actual: BinaryTree = interpreter.run();
+
+			expect(actual).to.deep.equal(FALSE);
+		});
+		it(`[1, [5, 4, 2], 4]`, function () {
+			let interpreter: Interpreter = new Interpreter(EQUALS_AST, t(
+				a(1, a(5, 4, 2), 1),
+				a(1, a(5, 3, 2), 1)
+			));
 			let actual: BinaryTree = interpreter.run();
 
 			expect(actual).to.deep.equal(FALSE);

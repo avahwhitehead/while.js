@@ -4,7 +4,9 @@ import { describe, it } from "mocha";
 import { AST_ASGN, AST_IDENT_NAME, AST_MACRO, AST_OP, AST_PROG } from "../../src/types/ast";
 import ProgramManager from "../../src/utils/ProgramManager";
 import astEquals from "../../src/tools/astEquals";
-import { expectParseProgram } from "../utils";
+import { a, expectParseProgram, tn } from "../utils";
+import { BinaryTree } from "@whide/tree-lang";
+import { Interpreter } from "../../src";
 
 chai.config.truncateThreshold = 0;
 
@@ -215,6 +217,73 @@ describe('ProgramManager', function () {
 			//Check that the variables were assigned correctly
 			expect(new Set(mgr.macros)).to.deep.equal(new Set(['add']));
 			expect(mgr.macroCounts).to.deep.equal(new Map([['add', 2]]));
+		});
+
+		describe(`macro semantics`, function () {
+			describe(`equals`, function () {
+				//Get an AST
+				let ast: AST_PROG = expectParseProgram(`
+				myEquals read input {
+					output := <isEqual> input
+				} write output
+				`);
+
+				//Create a ProgramManager from the AST
+				let mgr = new ProgramManager(ast as AST_PROG);
+				mgr.replaceMacro(astEquals, 'isEqual');
+
+				const comparisons: [string, [BinaryTree, BinaryTree], boolean][] = [
+					['nil = nil',
+						[null, null],
+						true
+					],
+					['20 = 20',
+						[tn(20), tn(20)],
+						true
+					],
+					['nil = 2',
+						[null, tn(2)],
+						false
+					],
+					['[1, [5, 4, 2], 4] = [1, [5, 4, 2], 4]',
+						[
+							a(1, a(5, 4, 2), 1),
+							a(1, a(5, 4, 2), 1)
+						],
+						true
+					],
+					['[1, [5, 4, 2], 4] = [1, [5, 3, 2], 4]',
+						[
+							a(1, a(5, 4, 2), 1),
+							a(1, a(5, 3, 2), 1)
+						],
+						false
+					],
+					['[1, [5, 4, 2], 4] = [0, [5, 4, 2], 4]',
+						[
+							a(1, a(5, 4, 2), 1),
+							a(0, a(5, 4, 2), 1)
+						],
+						false
+					],
+				];
+
+				for (let [name, [a, b], expected] of comparisons) {
+					it(`${name} should be ${expected}`, function () {
+						let interpreter: Interpreter = new Interpreter(
+							mgr.prog,
+							{left: a, right: b}
+						);
+
+						let result: BinaryTree = interpreter.run();
+
+						let expectedTree: BinaryTree = expected ? {left: null, right: null} : null;
+
+						//Expect this output
+						expect(result).to.deep.equal(expectedTree);
+					});
+				}
+			});
 		});
 	});
 

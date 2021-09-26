@@ -133,6 +133,7 @@ export default class ProgramManager {
 		this._variableManager = new VariableManager();
 		this._macros = new Map<string, number>();
 		this._macroPositions = new Map<string, MacroPosition[]>();
+		this._variablePositions = new Map<string, AST_IDENT_NAME[]>();
 		this._analyseProgram();
 	}
 
