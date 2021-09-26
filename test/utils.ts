@@ -222,12 +222,10 @@ export function ukwn(t: string, pos: Position|number, col?: number): UNKNOWN_TYP
 	};
 }
 
-export function nmbr(v: number, t: string, pos: Position): NUMBER_TYPE;
-export function nmbr(v: number, t: string, pos: number, col: number): NUMBER_TYPE;
-export function nmbr(v: number, t: string, pos: Position|number, col?: number): NUMBER_TYPE {
-	let length: number;
-	if (v === 0) length = 1;
-	else length = Math.floor(Math.log10(v)) + 1;
+export function nmbr(v: number, t: string, pos: Position, length?: number): NUMBER_TYPE;
+export function nmbr(v: number, t: string, pos: number, col: number, length?: number): NUMBER_TYPE;
+export function nmbr(v: number, t: string, pos: Position|number, col?: number, length?: number): NUMBER_TYPE {
+	if (length === undefined) length = t.length;
 
 	let startPos: Position = (typeof pos === 'number') ? { row: pos, col: col!} : pos;
 	let endPos: Position = { row: startPos.row, col: startPos.col + length };

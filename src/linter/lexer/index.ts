@@ -1,28 +1,44 @@
 import Position, { incrementPos } from "../../types/position";
 import { ErrorManager, ErrorType } from "../../utils/errorManager";
 import {
-	EXPR_TOKEN, OP_TOKEN,
+	EXPR_TOKEN,
+	OP_TOKEN,
 	SYMBOL_TOKEN,
 	TKN_ASSGN,
 	TKN_BLOCK_CLS,
-	TKN_BLOCK_OPN, TKN_CONS, TKN_ELSE, TKN_HD, TKN_IF, TKN_PREN_CLS,
-	TKN_PREN_OPN, TKN_READ,
-	TKN_SEP, TKN_TL, TKN_WHILE, TKN_WRITE,
+	TKN_BLOCK_OPN,
+	TKN_CONS,
+	TKN_ELSE,
+	TKN_HD,
+	TKN_IF,
+	TKN_PREN_CLS,
+	TKN_PREN_OPN,
+	TKN_READ,
+	TKN_SEP,
+	TKN_TL,
+	TKN_WHILE,
+	TKN_WRITE,
 	WHILE_TOKEN
 } from "../../types/tokens";
 import {
 	EXPR_TOKEN_EXTD,
 	OP_TOKEN_EXTD,
-	SYMBOL_TOKEN_EXTD, TKN_CASE,
+	PAD_VALUES,
+	SYMBOL_TOKEN_EXTD,
+	TKN_CASE,
 	TKN_COLON,
-	TKN_COMMA, TKN_DEFAULT,
+	TKN_COMMA,
+	TKN_DEFAULT,
 	TKN_DOT,
-	TKN_EQL, TKN_FALSE,
+	TKN_EQL,
+	TKN_FALSE,
 	TKN_LIST_CLS,
 	TKN_LIST_OPN,
 	TKN_MCRO_CLS,
-	TKN_MCRO_OPN, TKN_SWITCH,
-	TKN_TRUE, WHILE_TOKEN_EXTD,
+	TKN_MCRO_OPN,
+	TKN_SWITCH,
+	TKN_TRUE,
+	WHILE_TOKEN_EXTD,
 } from "../../types/extendedTokens";
 
 const SYMBOL_LIST: SYMBOL_TOKEN[] = [
@@ -101,13 +117,21 @@ function read_identifier(program: string): string|null {
  * @param program	The program string
  */
 function read_number(program: string): string|null {
-// function read_number(program: string): number|null {
 	//Read the longest number possible from the program string
 	//Must not be followed by an identifier character afterwards (e.g. `0a` or `0_2` as this is an invalid identifier)
 	const exec = /^(\d+)[^\w]*/.exec(program);
 	if (exec === null) return null;
 	return exec[1];
-	// return Number.parseInt(exec[1]);
+}
+
+/**
+ * Read a programs-as-data token from the start of the program string
+ * @param program	the program string
+ */
+function read_pad_token(program: string): string|null {
+	let token = program.match(/^(@[:=a-z]+)/i);
+	if (token === null) return null;
+	return token[0];
 }
 
 /**
@@ -143,11 +167,29 @@ function read_next_token(program: string, pos: Position, pureOnly: boolean = fal
 	let expr: string|null = read_identifier(program);
 	if (expr === null) {
 		if (pureOnly) return null;
+
+		//Attempt to read a programs-as-data token
+		expr = read_pad_token(program);
+		if (expr !== null) {
+			return {
+				type: 'number',
+				token: expr,
+				value: PAD_VALUES[expr],
+				length: expr.length,
+				pos: pos,
+				endPos: {
+					row: pos.row,
+					col: pos.col + expr.length,
+				},
+			}
+		}
+
 		//Attempt to read a number instead
 		expr = read_number(program);
 		if (expr === null) return null;
 		return {
 			type: 'number',
+			token: expr,
 			value: Number.parseInt(expr),
 			length: expr.length,
 			pos,
@@ -279,7 +321,7 @@ export default function lexer(program: string, props?: LexerOptions): [(WHILE_TO
 		//Save the token to the list
 		res.push(token);
 		//Remove the token from the start of the program
-		if (typeof token.value === 'number') pos.col += token.length;
+		if (token.type === 'number') pos.col += token.length;
 		else incrementPos(pos, token.value);
 		program = program.substring(token.length);
 	}

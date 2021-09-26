@@ -23,6 +23,43 @@ export type OP_TOKEN_EXTD = OP_TOKEN | 'true' | 'false';
 export const TKN_TRUE: OP_TOKEN_EXTD = 'true';
 export const TKN_FALSE: OP_TOKEN_EXTD = 'false';
 
+//Programs as data
+export type PAD_TOKEN = '@asgn' | '@:=' | '@doAsgn' | '@while' | '@doWhile' | '@if' | '@doIf' | '@var' | '@quote' | '@hd' | '@doHd' | '@tl' | '@doTl' | '@cons' | '@doCons';
+export const TKN_PAD_ASSIGN: PAD_TOKEN = '@asgn';
+export const TKN_PAD_ASSIGN_1: PAD_TOKEN = '@:=';
+export const TKN_PAD_DO_ASSIGN: PAD_TOKEN = '@doAsgn';
+export const TKN_PAD_WHILE: PAD_TOKEN = '@while';
+export const TKN_PAD_DO_WHILE: PAD_TOKEN = '@doWhile';
+export const TKN_PAD_IF: PAD_TOKEN = '@if';
+export const TKN_PAD_DO_IF: PAD_TOKEN = '@doIf';
+export const TKN_PAD_VAR: PAD_TOKEN = '@var';
+export const TKN_PAD_QUOTE: PAD_TOKEN = '@quote';
+export const TKN_PAD_HD: PAD_TOKEN = '@hd';
+export const TKN_PAD_DO_HD: PAD_TOKEN = '@doHd';
+export const TKN_PAD_TL: PAD_TOKEN = '@tl';
+export const TKN_PAD_DO_TL: PAD_TOKEN = '@doTl';
+export const TKN_PAD_CONS: PAD_TOKEN = '@cons';
+export const TKN_PAD_DO_CONS: PAD_TOKEN = '@doCons';
+
+//Accept the programs-as-data atoms using the HWhile numerical representations
+export const PAD_VALUES: {[key: string]: number} = {
+	'@asgn': 2,		//TKN_PAD_ASSIGN
+	'@:=': 2,		//TKN_PAD_ASSIGN_1
+	'@doAsgn': 3,	//TKN_PAD_DO_ASSIGN
+	'@while': 5,	//TKN_PAD_WHILE
+	'@doWhile': 7,	//TKN_PAD_DO_WHILE
+	'@if': 11,		//TKN_PAD_IF
+	'@doIf': 13,	//TKN_PAD_DO_IF
+	'@var': 17,		//TKN_PAD_VAR
+	'@quote': 19,	//TKN_PAD_QUOTE
+	'@hd': 23,		//TKN_PAD_HD
+	'@doHd': 29,	//TKN_PAD_DO_HD
+	'@tl': 31,		//TKN_PAD_TL
+	'@doTl': 37,	//TKN_PAD_DO_TL
+	'@cons': 41,	//TKN_PAD_CONS
+	'@doCons': 43,	//TKN_PAD_DO_CONS
+};
+
 //Token types
 /**
  * Represents a symbol in the token list of an extended while program.

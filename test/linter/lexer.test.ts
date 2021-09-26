@@ -212,7 +212,7 @@ describe('Lexer', function () {
 								lexer(numSt, {pureOnly:isPure})
 							).to.deep.equal([
 								[
-									nmbr(num, 0, 0)
+									nmbr(num, numSt, 0, 0)
 								],
 								[]
 							]);
@@ -587,6 +587,114 @@ describe('Lexer', function () {
 						idnt('res', 7, 8)
 					],
 					[]
+				]);
+			});
+		});
+
+		describe('PaD tokens', function () {
+			it(`should accept '@asgn'`, function () {
+				let [res, err] = lexer('@asgn');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(2, '@asgn', 0, 0)
+				]);
+			});
+			it(`should accept '@:='`, function () {
+				let [res, err] = lexer('@:=');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(2, '@:=', 0, 0)
+				]);
+			});
+			it(`should accept '@doAsgn'`, function () {
+				let [res, err] = lexer('@doAsgn');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(3, '@doAsgn', 0, 0)
+				]);
+			});
+			it(`should accept '@while'`, function () {
+				let [res, err] = lexer('@while');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(5, '@while', 0, 0)
+				]);
+			});
+			it(`should accept '@doWhile'`, function () {
+				let [res, err] = lexer('@doWhile');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(7, '@doWhile', 0, 0)
+				]);
+			});
+			it(`should accept '@if'`, function () {
+				let [res, err] = lexer('@if');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(11, '@if', 0, 0)
+				]);
+			});
+			it(`should accept '@doIf'`, function () {
+				let [res, err] = lexer('@doIf');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(13, '@doIf', 0, 0)
+				]);
+			});
+			it(`should accept '@var'`, function () {
+				let [res, err] = lexer('@var');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(17, '@var', 0, 0)
+				]);
+			});
+			it(`should accept '@quote'`, function () {
+				let [res, err] = lexer('@quote');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(19, '@quote', 0, 0)
+				]);
+			});
+			it(`should accept '@hd'`, function () {
+				let [res, err] = lexer('@hd');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(23, '@hd', 0, 0)
+				]);
+			});
+			it(`should accept '@doHd'`, function () {
+				let [res, err] = lexer('@doHd');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(29, '@doHd', 0, 0)
+				]);
+			});
+			it(`should accept '@tl'`, function () {
+				let [res, err] = lexer('@tl');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(31, '@tl', 0, 0)
+				]);
+			});
+			it(`should accept '@doTl'`, function () {
+				let [res, err] = lexer('@doTl');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(37, '@doTl', 0, 0)
+				]);
+			});
+			it(`should accept '@cons'`, function () {
+				let [res, err] = lexer('@cons');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(41, '@cons', 0, 0)
+				]);
+			});
+			it(`should accept '@doCons'`, function () {
+				let [res, err] = lexer('@doCons');
+				expect(err).to.deep.equal([]);
+				expect(res).to.deep.equal([
+					nmbr(43, '@doCons', 0, 0)
 				]);
 			});
 		});
