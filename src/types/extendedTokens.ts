@@ -97,6 +97,7 @@ export interface OP_TYPE_EXTD {
 export interface NUMBER_TYPE {
 	type: 'number',
 	value: number,
+	token: string,
 	pos: Position,
 	endPos: Position,
 	length: number;
