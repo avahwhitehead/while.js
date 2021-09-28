@@ -20,7 +20,12 @@ import { LinterOpts } from "../linter";
  * Constructor options for the {@link Interpreter} class
  */
 export interface InterpreterProps extends LinterOpts {
-
+	/**
+	 * All the macro programs available to the program.
+	 * Macros can either be {@link AST_PROG} (where the name is the program name,
+	 * or an object consisting of an (optional) name, and a program AST.
+	 */
+	macros?: (AST_PROG|{n?:string, p:AST_PROG})[]
 }
 
 type AST_BLOCK = {
@@ -82,8 +87,9 @@ type EXEC_AST_ROOT = {
 export default class Interpreter {
 	private _props: InterpreterProps;
 	private _input: BinaryTree;
-	private _program: AST_PROG;
+	private readonly _program: AST_PROG;
 	private readonly _store: Map<string, BinaryTree>;
+	private readonly _macros: Map<string, AST_PROG>;
 
 	private _commandStack: EXEC_AST_CMD[];
 	private _exprStack: EXEC_AST_EXPR[];
@@ -162,12 +168,26 @@ export default class Interpreter {
 	 * @param input	Binary tree to pass as input to the program
 	 * @param props	Initialisation configuration parameters
 	 */
-	public constructor(ast: AST_PROG, input: BinaryTree, props?: InterpreterProps) {
+	public constructor(ast: AST_PROG, input: BinaryTree, props?: Partial<InterpreterProps>) {
 		this._program = ast;
 		this._input = input;
 		this._props = props || {};
 		this._store = new Map<string, BinaryTree>();
 		this._store.set(ast.input.value, input);
+
+		this._macros = new Map<string, AST_PROG>();
+		for (let macro of props?.macros || []) {
+			let name: string;
+			let prog: AST_PROG;
+			if ((macro as {n?: string, p:AST_PROG}).p) {
+				prog = (macro as {n?: string, p:AST_PROG}).p;
+				name = (macro as {n?: string, p:AST_PROG}).n || prog.name.value;
+			} else {
+				name = (macro as AST_PROG).name.value;
+				prog = (macro as AST_PROG);
+			}
+			this._macros.set(name, prog);
+		}
 
 		this._exprStack = [];
 
@@ -404,7 +424,23 @@ export default class Interpreter {
 					this._replaceArgWithLiteral(null);
 				}
 			} else if (curr.type === "macro") {
-				//TODO: Macros
+				if (curr.input.type !== 'literal') {
+					//Evaluate the macro argument first
+					this._exprStack.push(curr);
+					this._exprStack.push(curr.input);
+				} else {
+					if (!this._macros.has(curr.program)) {
+						throw new Error(`Could not find macro "${curr.program}". Ensure the macro is named correctly and has been passed to the interpreter.`);
+					}
+					let interpreter: Interpreter = new Interpreter(
+						this._macros.get(curr.program)!,
+						curr.input.tree,
+						this._props,
+					);
+					this._replaceArgWithLiteral(
+						interpreter.run()
+					);
+				}
 			} else {
 				//Unknown expression type
 				throw new Error(`Unknown expression token '${curr!.type}'`);
@@ -464,7 +500,8 @@ export default class Interpreter {
 			} else {
 				par.arg2 = literal;
 			}
-		// } else if (par.type === 'macro') {
+		} else if (par.type === 'macro') {
+			par.input = literal;
 		// } else if (par.type === 'identifier') {
 		} else {
 			//Unknown/invalid expression type

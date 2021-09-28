@@ -2,7 +2,9 @@ import * as chai from "chai";
 import { expect } from "chai";
 import { describe, it } from "mocha";
 import Interpreter from "../../src/run/Interpreter";
-import { a, t, tn, treeToString } from "../utils";
+import { a, expectParseProgram, t, tn, treeToString } from "../utils";
+import astEquals from "../../src/tools/astEquals";
+import { BinaryTree } from "@whide/tree-lang";
 
 chai.config.truncateThreshold = 0;
 
@@ -450,6 +452,65 @@ describe('Interpreter', function () {
 			).to.deep.equal(
 				null
 			);
+		});
+	});
+
+	describe('macro test', function () {
+		it(`should correctly evaluate a basic macro`, function () {
+			//Root program AST
+			let ast = expectParseProgram(`
+			prog read X {
+				Y := <double> X
+			} write Y
+			`);
+			//Macro AST
+			let macroAst = expectParseProgram(`
+			double read X {
+				Y := cons X X
+			} write Y
+			`);
+
+			const tests = [
+				tn(4),
+				null,
+				a(a(t(null, null), null))
+			];
+			for (let tree of tests) {
+				let interpreter: Interpreter = new Interpreter(ast, tree, {macros: [macroAst]});
+				expect(interpreter.run()).to.deep.equal(t(tree, tree));
+			}
+		});
+
+		describe(`equality macro`, function () {
+			//Root program AST
+			let ast = expectParseProgram(`
+			prog read X {
+				Y := <equals> X
+			} write Y
+			`);
+
+			const trueTests: [BinaryTree,BinaryTree,string][] = [
+				[null, null, 'null'],
+				[tn(5), tn(5), '5'],
+				[a(5, 2, 0), t(5, a(2, 0)), '[5, 2, 0]'],
+			];
+			for (let [t1,t2,name] of trueTests) {
+				it(`${name} expects true`, function () {
+					let interpreter: Interpreter = new Interpreter(ast, t(t1, t2), {macros: [{n:'equals', p:astEquals}]});
+					expect(interpreter.run()).to.deep.equal(tn(1));
+				});
+			}
+			const falseTests: [BinaryTree,BinaryTree,string][] = [
+				[null, tn(1), 'null = 1'],
+				[tn(6), tn(5), '6 = 5'],
+				[a(5, 2, 0), a(5, 2), '[5, 2, 0] = [5, 2]'],
+			];
+			for (let [t1,t2,name] of falseTests) {
+				it(`${name} expects false`, function () {
+					let interpreter: Interpreter = new Interpreter(ast, t(t1, t2), {macros: [{n:'equals', p:astEquals}]});
+					expect(interpreter.run()).to.deep.equal(tn(0));
+				});
+			}
 		});
 	});
 });
