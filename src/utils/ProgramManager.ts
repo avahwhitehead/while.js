@@ -357,13 +357,29 @@ export default class ProgramManager {
 	 * The resulting AST will have the same semantics as the original program.
 	 * @returns {this}	This ProgramManager object
 	 */
-	public toPure(): this {
+	public toPure(macros?: (AST_PROG|{n?:string,p:AST_PROG})[]): this {
 		//Get a unique macro name to use for replacing the equals expressions in the code
 		let equalsMacroName: string;
 		let nameGenerator = new NameGenerator();
 		do {
 			equalsMacroName = nameGenerator.next();
 		} while (this.macroCounts.has(equalsMacroName));
+
+		for (let macro of macros || []) {
+			let name: string;
+			let prog: AST_PROG;
+			if ((macro as {n?:string,p:AST_PROG}).p) {
+				let macro1 = macro as {n?:string,p:AST_PROG};
+				name = macro1.n || macro1.p.name.value;
+				prog = macro1.p;
+			} else {
+				prog = macro as AST_PROG;
+				name = (macro as AST_PROG).name.value;
+			}
+
+			while (this.macros.includes(name))
+				this.replaceMacro(prog, name, true);
+		}
 
 		//Convert the program body to pure
 		this._bodyToPure(this._prog.body, equalsMacroName);
