@@ -32,7 +32,7 @@ function treeToString(tree: BinaryTree, format: string = 'any') {
 	return treeString;
 }
 
-function _readProgram(filePath: string): AST_PROG {
+function _readProgram(filePath: string, ignoreName: boolean = false): AST_PROG {
 	//Check the file exists
 	let fullPath = path.resolve(filePath);
 	if (!fs.existsSync(fullPath)) {
@@ -53,6 +53,16 @@ function _readProgram(filePath: string): AST_PROG {
 			`Errors while parsing ${filePath}:\n`
 			+ err.map(e => `${e.position.col}.${e.position.row}: ${e.message}`).join('\n    ')
 		);
+	}
+
+	if (!ignoreName) {
+		//Make sure the program name matches the file
+		let fileName: string = path.basename(filePath);
+		fileName = fileName.split(/\./)[0];
+		if (fileName !== ast.name.value) {
+			console.error(`Error: File name should match program name.`);
+			process.exit(1);
+		}
 	}
 
 	return ast as AST_PROG;
@@ -98,6 +108,10 @@ interface InterpreterOptions {
 	/**
 	 * Convert a program to pure WHILE
 	 */
+	ignoreName: boolean;
+	/**
+	 * Convert a program to pure WHILE
+	 */
 	pure: boolean;
 	/**
 	 * Convert a program to PaD representation
@@ -118,13 +132,13 @@ program
 	.description('Command line interface for the while.js interpreter.',)
 	.option('-P, --pureOnly', 'run the program using pure WHILE syntax only (error on extended while)')
 	.option('-o, --output <format>', 'interpreter tree output format')
-	.option('-in, --ignore-name', `don't `)
-
-	.option('-p, --pure', `Convert a program to its pure WHILE equivalent.`)
+	.option('--ignore-name', `don't error if the program name doesn't match the file name`)
 
 	.option('-d, --data', `Convert a program into its programs-as-data format.`)
 	.option('-u', 'Same as --data. Compatibility argument with HWhile.')
 	.option('--pure-data', 'For use with -d. Display prog-as-data without the @.')
+
+	.option('-p, --pure', `Convert a program to its pure WHILE equivalent.`)
 
 	.argument('<file>', 'File containing the input WHILE program')
 	.argument('[input]', 'Binary tree to use as input to the WHILE program')
@@ -132,7 +146,7 @@ program
 	.action((filePath: string, input: string|undefined, opts: InterpreterOptions) => {
 		//Create an AST of the program to execute
 		//This will be required no matter which options are provided
-		let ast: AST_PROG = _readProgram(filePath);
+		let ast: AST_PROG = _readProgram(filePath, opts.ignoreName);
 		let progMgr: ProgramManager = new ProgramManager(ast);
 
 		//Path of the folder containing the program file
@@ -142,7 +156,7 @@ program
 		let macroMgr: MacroManager = new MacroManager(ast);
 		//Register all the macros
 		macroMgr.autoRegister(
-			(name: string) => _readProgram(path.join(parentDir, name + '.while'))
+			(name: string) => _readProgram(path.join(parentDir, name + '.while'), opts.ignoreName)
 		);
 
 		if (opts.pure) {
