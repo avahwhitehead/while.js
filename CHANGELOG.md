@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/sonrad10/while.js/compare/v2.1.0...v2.2.0) (2021-10-06)
+
+
+### Features
+
+* added MacroManager to simplify registering macro dependencies ([ba10d82](https://github.com/sonrad10/while.js/commit/ba10d82972523a65439bed9da7d8da5d97259475))
+* added ProgramManager class to simplify performing operations on programs ([a67347a](https://github.com/sonrad10/while.js/commit/a67347a37729dda8b0055667f69b42990917f607))
+* added ProgramManager support for converting a program AST back into a string ([13ba9cb](https://github.com/sonrad10/while.js/commit/13ba9cb690b02bd008f87536377ecd8e7af4a12d))
+* added support for converting from a programs-as-data object to a program AST ([e54f8e0](https://github.com/sonrad10/while.js/commit/e54f8e0fe73908583dfb4361bf658d403e15407c))
+* added support for converting programs to programs-as-data format ([c82860f](https://github.com/sonrad10/while.js/commit/c82860f03c7efa687a60d2668441e869973590e1))
+* added support for displaying programs-as-data objects as strings ([e3dedaa](https://github.com/sonrad10/while.js/commit/e3dedaa213011d2eecac1cc9cfd0aad32fad1997))
+* added support for program-as-data tokens in extended WHILE ([e5a5501](https://github.com/sonrad10/while.js/commit/e5a55015d38e9c897e952a70d879e6e3372d81c9))
+* added support for replacing macro calls with code ([1008b7e](https://github.com/sonrad10/while.js/commit/1008b7e450cce3437babec4d133243d23803c29c))
+* added support for running macros in the interpreter ([de3ddd4](https://github.com/sonrad10/while.js/commit/de3ddd43aa7993c080e899d1f7de819d28a21d83))
+* allowed ProgramManager to detect the macros referenced in a program ([1ec2ed9](https://github.com/sonrad10/while.js/commit/1ec2ed9911acef278c56dae9dceea0c618f9e7f0))
+
+
+### Bug Fixes
+
+* fixed issue where replacing macros would sometimes produce incorrect programs ([3107d87](https://github.com/sonrad10/while.js/commit/3107d872b577184de6624ae3c27bbd3046f51db0))
+* removed unnecessary position markers from the AST ([641142a](https://github.com/sonrad10/while.js/commit/641142a5ef20461a1c5e338d64915897dfc1204e))
+* stopped incorrectly flagging equality check inside parenthesis as an error ([43610db](https://github.com/sonrad10/while.js/commit/43610dbd74e91bf093e9ea2bc05c274ee7cb7cb7))
+
 ## [2.1.0](https://github.com/sonrad10/while.js/compare/v2.0.0...v2.1.0) (2021-07-04)
 
 
