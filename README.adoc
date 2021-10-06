@@ -1,34 +1,94 @@
 :icons: font
 = While.js
 
-This library provides an interpreter and syntax analysis tools for the WHILE language used at the University of Sussex.
+This is primarily a utility library for the link:https://github.com/sonrad10/Whide[Whide editor] to perform operations on programs written in the WHILE language used at the University of Sussex.
+
+Before this library, the only (known) existing program operating on WHILE programs was link:https://github.com/Alexj136/HWhile[HWhile].
+
 For more information about the WHILE language, see the <<_while_language_context_free_grammar, Context Free Grammar>,
-the link:https://github.com/sonrad10/Whide[Whide editor] (for which this library was produced), or the Haskell WHILE interpreter link:https://github.com/Alexj136/HWhile[HWhile].
+the link:https://github.com/sonrad10/Whide[Whide editor] (for which this library was produced), or the Haskell WHILE interpreter .
+
+== Features
+
+* Linter
+* Interpreter (no debugger yet)
+* Convert program to pure WHILE
+* Convert to programs-as-data representation
 
 == Installing
 
-Install while.js globally using npm:
+To run this program, you will need to have link:https://nodejs.org/en/[Node.js] installed.
+
+The recommended install method is from the NPM global repository:
 
 [source,shell]
 ----
 npm install -g whilejs
 ----
 
-== Usage
+Alternatively you can install it manually:
 
-Run a WHILE program with:
+> [source,shell]
+> ----
+> $ git clone git@github.com:sonrad10/while.js.git
+> ----
+> [source,shell]
+> ----
+> $ git clone https://github.com/sonrad10/while.js
+> ----
+
+Then install globally:
+
+> [source,shell]
+> ----
+> $ cd while.js/
+> $ npm install -g
+> ----
+
+== Command Line Usage
+
+//Ensure the program is installed on your computer.
+
+Use `whilejs --help` for a complete list of the program options.
+
+=== Interpreter
 
 [source,shell]
 ----
 whilejs prog.while <input tree>
 ----
 
-Use the `-p` or `--pure` flag to run the program as pure WHILE (not allowing any extended language features).
+Use the `-P` or `--pureOnly` flag to run the program as pure WHILE (not allowing any extended language features).
 
 Additionally, the output display format of the program can be set using the `-o` or `--output` flags.
 The treeLang syntax is described on link:https://github.com/sonrad10/whide-treeLang[this page].
 
 Use `whilejs --help` for a complete list of the program options.
+
+=== Programs-as-data
+
+Use the `--data`, `-d`, or `-u` option to convert WHILE programs to their programs-as-data representation.
+
+[source,shell]
+----
+whilejs --data prog.while
+----
+
+The optional `--pure-data` flag removes the leading `@` symbols from each command in the data representation.
+
+[source,shell]
+----
+whilejs --data --pure-data prog.while
+----
+
+=== Convert to pure WHILE
+
+Use the `--pure` or `-p` flags to convert an extended-WHILE program to a semantically equivalent pure WHILE program:
+
+[source,shell]
+----
+whilejs --pure prog.while
+----
 
 == Usage (for developers)
 
@@ -36,7 +96,22 @@ Add while.js to your project as a dependency:
 
 [source,shell]
 ----
-npm install --save while.js
+npm install --save whilejs
+----
+
+From this, import the required utilities as follows:
+
+[source, typescript]
+----
+import {
+    linter, parseProgram,
+    Interpreter,
+    ProgramManager,
+    MacroManager,
+    toPad, fromPad, displayPad,
+    displayProgram,
+    ErrorType, BinaryTree
+} from "whilejs";
 ----
 
 === Interpreter
@@ -166,6 +241,80 @@ When the parser catches invalid syntax, the offending block (and all its parent 
 and any data which cannot be parsed from the code is filled with null.
 If the program's root AST node is marked as complete (i.e. `node.complete` is `true`) then the program was parsed without issue.
 Otherwise, at least one node in the tree contains incomplete data.
+
+=== Programs-as-data
+
+[source,typescript]
+----
+import { parseProgram, toPad, fromPad, displayPad, displayProgram } from "whilejs";
+import { HWHILE_DISPLAY_FORMAT, ProgDataType } from "whilejs/lib/tools/progAsData";
+import { AST_PROG } from "whilejs/lib/ast";
+
+//The program to convert
+let [prog, err] = parseProgram(`
+prog read in {
+    out := cons in in
+} write out
+`);
+
+//Make sure there weren't any parsing errors
+if (!prog.complete) {
+    let errString = '';
+    for (let i in err) {
+        errString += err[i].position.row + '.' + err[i].position.column;
+        errString += `: ` + err[i].message;
+        if (i < err.length - 1) errString += '\n';
+    }
+    throw new Error(`Errors while parsing the program:\n${errString}`);
+}
+
+//Convert the program to prog-as-data
+let pad: ProgDataType = toPad(prog);
+console.log(displayPad(pad, HWHILE_DISPLAY_FORMAT));
+
+//Convert from prog-as-data back to a program
+let prog1: AST_PROG = fromPad(pad);
+console.log(displayProgram(prog1));
+----
+
+=== Program Analysis tools
+
+[source,typescript]
+----
+import { parseProgram, ProgramManager } from "whilejs";
+import { AST_PROG } from "whilejs/lib/ast";
+
+//The program to convert
+let [prog, err] = parseProgram(`
+prog read in {
+    out := cons in in
+} write out
+`);
+
+//Make sure there weren't any parsing errors
+if (!prog.complete) {
+    let errString = '';
+    for (let i in err) {
+        errString += err[i].position.row + '.' + err[i].position.column;
+        errString += `: ` + err[i].message;
+        if (i < err.length - 1) errString += '\n';
+    }
+    throw new Error(`Errors while parsing the program:\n${errString}`);
+}
+//Create a program manager
+let mgr: ProgramManager = new ProgramManager(prog);
+
+//Replace the macro called 'macroName' with its program code
+mgr.replaceMacro(macroAst, 'macroName');
+//Rename variable 'in' to 'X'
+mgr.renameVariable('in', 'X');
+//Display the program as a string
+mgr.displayProgram();
+//Convert the program from extended WHILE into pure WHILE
+mgr.toPure();
+//Convert the program from extended to programs-as-data representation
+mgr.toPad();
+----
 
 === Testing
 
