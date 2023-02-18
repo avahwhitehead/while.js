@@ -5,7 +5,7 @@ This is primarily a utility library for the link:https://github.com/sonrad10/Whi
 
 Before this library, the only (known) existing program operating on WHILE programs was link:https://github.com/Alexj136/HWhile[HWhile].
 
-For more information about the WHILE language, see the <<_while_language_context_free_grammar, Context Free Grammar>,
+For more information about the WHILE language, see the <<_while_language_context_free_grammar, Context Free Grammar>>,
 the link:https://github.com/sonrad10/Whide[Whide editor] (for which this library was produced), or the Haskell WHILE interpreter .
 
 == Features
