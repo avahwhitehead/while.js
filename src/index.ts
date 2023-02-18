@@ -13,3 +13,4 @@ export { toPad, fromPad, displayPad };
 export { displayProgram };
 export { ErrorType } from "./utils/errorManager";
 export { BinaryTree } from "./types/Trees";
+export { PositionalIterator } from "./utils/PositionalIterator";

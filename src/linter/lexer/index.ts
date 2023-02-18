@@ -1,4 +1,3 @@
-import Position, { incrementPos } from "../../types/position";
 import { ErrorManager, ErrorType } from "../../utils/errorManager";
 import {
 	EXPR_TOKEN,
@@ -18,6 +17,7 @@ import {
 	TKN_TL,
 	TKN_WHILE,
 	TKN_WRITE,
+	UNKNOWN_TYPE,
 	WHILE_TOKEN
 } from "../../types/tokens";
 import {
@@ -40,6 +40,7 @@ import {
 	TKN_TRUE,
 	WHILE_TOKEN_EXTD,
 } from "../../types/extendedTokens";
+import { PositionalIterator } from "../../utils/PositionalIterator";
 
 const SYMBOL_LIST: SYMBOL_TOKEN[] = [
 	//Symbols
@@ -102,141 +103,148 @@ interface IntLexerOptions {
 /**
  * Read an identifier (variable/program name) from the start of the program string.
  * Identifiers match the regex {@code /[a-z_]\w*\/i}
- * @param program	The program string
+ * @param program	Iterator through the program string
  */
-function read_identifier(program: string): string|null {
+function read_identifier(program: PositionalIterator): string|null {
 	//Read the longest identifier possible from the program string
 	//Case insensitive, starts with a letter or underscore, optionally followed by any number of alphanumeric chars and underscores
-	const exec = /^[a-z_]\w*/i.exec(program);
-	if (exec === null) return null;
-	return exec[0];
+	let matchLength = program.matchLength(/^[a-z_]\w*/i);
+	if (matchLength > -1) return program.next(matchLength);
+	return null;
 }
 
 /**
  * Read a number from the start of the program string.
- * @param program	The program string
+ * @param program	Iterator through the program string
  */
-function read_number(program: string): string|null {
+function read_number(program: PositionalIterator): string|null {
 	//Read the longest number possible from the program string
 	//Must not be followed by an identifier character afterwards (e.g. `0a` or `0_2` as this is an invalid identifier)
-	const exec = /^(\d+)[^\w]*/.exec(program);
-	if (exec === null) return null;
-	return exec[1];
+	let matchLength = program.matchLength(/^\d+/);
+	if (matchLength > -1) return program.next(matchLength);
+	return null;
 }
 
 /**
  * Read a programs-as-data token from the start of the program string
- * @param program	the program string
+ * @param program	Iterator through the program string
  */
-function read_pad_token(program: string): string|null {
-	let token = program.match(/^(@[:=a-z]+)/i);
-	if (token === null) return null;
-	return token[0];
+function read_pad_token(program: PositionalIterator): string|null {
+	let matchLength = program.matchLength(/^(@[:=a-z]+)/i);
+	if (matchLength > -1) return program.next(matchLength);
+	return null;
 }
 
 /**
  * Read a token from the start of the program string
- * @param program	The program string
- * @param pos		The position counter
- * @param pureOnly	Whether to only accept tokens used in the pure language
+ * @param progIterator	Iterator through the program string
+ * @param errorManager	Error manager object
+ * @param pureOnly		Whether to only accept tokens used in the pure language
  * @returns WHILE_TOKEN			If {@code pureOnly} is {@code true}
  * @returns WHILE_TOKEN_EXTD	If {@code pureOnly} is {@code false}
  * @returns null	If the next token is not a valid symbol or identifier name
  */
-function read_next_token(program: string, pos: Position, pureOnly: boolean = false): WHILE_TOKEN|WHILE_TOKEN_EXTD|null {
+function read_next_token(progIterator: PositionalIterator, errorManager: ErrorManager, pureOnly: boolean = false): WHILE_TOKEN|WHILE_TOKEN_EXTD|UNKNOWN_TYPE {
+	let startPos = progIterator.getPosition();
+
 	//Attempt to read a symbol
 	for (let sym of pureOnly ? SYMBOL_LIST : SYMBOL_LIST_EXTD) {
 		//Check each symbol against the start of the program string
-		if (program.substr(0, sym.length) === sym) {
-			let endPos: Position = {...pos};
-			incrementPos(endPos, sym);
-
+		if (progIterator.matchAndConsume(sym)) {
 			//Return the symbol token if a match is found
 			return {
 				type: 'symbol',
 				value: sym,
-				pos,
-				endPos,
+				pos: startPos,
+				endPos: progIterator.getPosition(),
 				length: sym.length,
 			};
 		}
 	}
 
-	//Attempt to read an identifier
-	//E.g. program/variable name, operator
-	let expr: string|null = read_identifier(program);
-	if (expr === null) {
-		if (pureOnly) return null;
-
+	if (!pureOnly) {
+		let expr: string|null;
 		//Attempt to read a programs-as-data token
-		expr = read_pad_token(program);
+		expr = read_pad_token(progIterator);
 		if (expr !== null) {
 			return {
 				type: 'number',
 				token: expr,
 				value: PAD_VALUES[expr],
 				length: expr.length,
-				pos: pos,
-				endPos: {
-					row: pos.row,
-					col: pos.col + expr.length,
-				},
+				pos: startPos,
+				endPos: progIterator.getPosition(),
 			}
 		}
 
 		//Attempt to read a number instead
-		expr = read_number(program);
-		if (expr === null) return null;
-		return {
-			type: 'number',
-			token: expr,
-			value: Number.parseInt(expr),
-			length: expr.length,
-			pos,
-			endPos: {
-				row: pos.row,
-				col: pos.col + expr.length,
-			},
-		};
+		expr = read_number(progIterator);
+		if (expr !== null) {
+			return {
+				type: 'number',
+				token: expr,
+				value: Number.parseInt(expr),
+				length: expr.length,
+				pos: startPos,
+				endPos: progIterator.getPosition(),
+			};
+		}
 	}
 
 	//See if the identifier is a known value
 	for (let tkn of pureOnly ? EXPR_LIST : EXPR_LIST_EXTD) {
-		if (expr === tkn) {
-			let endPos: Position = {...pos};
-			incrementPos(endPos, tkn);
+		if (progIterator.matchAndConsume(tkn)) {
 			return {
 				type: 'expression',
 				value: tkn,
 				length: tkn.length,
-				pos,
-				endPos,
+				pos: startPos,
+				endPos: progIterator.getPosition(),
 			};
 		}
 	}
+
 	for (let tkn of pureOnly ? OP_LIST : OP_LIST_EXTD) {
-		if (expr === tkn) {
-			let endPos: Position = {...pos};
-			incrementPos(endPos, tkn);
+		if (progIterator.matchAndConsume(tkn)) {
 			return {
 				type: 'operation',
 				value: tkn,
 				length: tkn.length,
-				pos,
-				endPos,
+				pos: startPos,
+				endPos: progIterator.getPosition(),
 			};
 		}
 	}
-	//Otherwise the token is an identifier name
+
+	//Attempt to read an identifier
+	//E.g. program/variable name, operator
+	let expr: string|null = read_identifier(progIterator);
+	if (expr !== null) {
+		//Otherwise the token is an identifier name
+		return {
+			type: 'identifier',
+			value: expr,
+			length: expr.length,
+			pos: startPos,
+			endPos: progIterator.getPosition(),
+		};
+	}
+
+	//Return the first character from the program string
+	let next = progIterator.next();
+	//Add an error at the current position
+	errorManager.addError(
+		startPos,
+		`Unknown token "${next}"`,
+		progIterator.getPosition()
+	);
+	//Mark unrecognised tokens
 	return {
-		type: 'identifier',
-		value: expr,
-		length: expr.length,
-		pos,
-		endPos: {
-			row: pos.row,
-			col: pos.col + expr.length
-		},
+		type: 'unknown',
+		value: next,
+		length: next.length,
+		pos: startPos,
+		endPos: progIterator.getPosition(),
 	};
 }
 
@@ -253,77 +261,37 @@ export default function lexer(program: string, props?: LexerOptions): [(WHILE_TO
 		pureOny: props.pureOnly || false
 	};
 
-	//Maintain a counter of how many characters have been processed
-	let pos: Position = { row:0, col:0 };
 	//Hold the produced token list
 	let res: (WHILE_TOKEN|WHILE_TOKEN_EXTD)[] = [];
 
+	let progIterator = new PositionalIterator(program);
+
 	//Run until the input string is empty
-	while (program.length) {
-		const whitespace: RegExpMatchArray|null = program.match(/^\s+/);
-		if (whitespace !== null) {
-			let match = whitespace[0];
-			incrementPos(pos, match);
-			program = program.substring(match.length);
-			continue;
-		}
+	while (progIterator.hasNext()) {
+		if (progIterator.matchAndConsume(/^\s+/)) continue;
 
 		//End-of-line comment
-		if (program.substr(0, 2) === '//') {
-			//Ignore text to the next line break, or the end of the program
-			let index = program.search('\n') || -1;
-			//Go to the end of the string
-			if (index === -1) index = program.length;
-			//Go to the end of the line, plus the line break
-			else index += 1;
-
-			pos.row++;
-			pos.col = 0;
-			program = program.substring(index);
+		if (progIterator.matches('//')) {
+			progIterator.nextEOL();
 			continue;
 		}
+
 		//Comment block (multiline/inline)
-		if (program.substr(0, 2) == '(*') {
+		if (progIterator.matches('(*')) {
 			//Ignore text to the end of the comment block
-			let index = program.search(/\*\)/) || -1;
-			index = index === -1 ? program.length : index + 2;
-			incrementPos(
-				pos,
-				program.substring(0, index)
-			);
-			program = program.substring(index);
+			let index = progIterator.search('*)');
+			if (index >= 0) index += 2;
+			else index = progIterator.remaining;
+			//Skip the comment block
+			progIterator.next(index);
 			continue;
 		}
 
 		//Read the next token in the program
-		let token: WHILE_TOKEN_EXTD | WHILE_TOKEN | null = read_next_token(program, {...pos}, options.pureOny);
-		if (token === null) {
-			//Return the first character from the program string
-			let next = program.charAt(0);
-			//Mark unrecognised tokens
-			token = {
-				type: 'unknown',
-				value: next,
-				pos: {...pos},
-				endPos: {
-					row: pos.row,
-					col: pos.col + next.length,
-				},
-				length: next.length,
-			};
-			//Add an error at the current position
-			errorManager.addError(
-				pos,
-				`Unknown token "${next}"`,
-				token.endPos
-			);
-		}
+		let token: WHILE_TOKEN_EXTD | WHILE_TOKEN | UNKNOWN_TYPE = read_next_token(progIterator, errorManager, options.pureOny);
+
 		//Save the token to the list
 		res.push(token);
-		//Remove the token from the start of the program
-		if (token.type === 'number') pos.col += token.length;
-		else incrementPos(pos, token.value);
-		program = program.substring(token.length);
 	}
 	//Return the produced token list and any created errors
 	return [res, errorManager.errors,];
