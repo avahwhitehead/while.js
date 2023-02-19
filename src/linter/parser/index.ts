@@ -125,6 +125,17 @@ class ErrorManager extends BaseErrorManager {
 }
 
 /**
+ * Configuration options for StateManager
+ */
+interface StateManagerOpts {
+	/**
+	 * Whether to skip comment tokens when iterating through the token list.
+	 * Default: true
+	 */
+	skipComments: boolean;
+}
+
+/**
  * Object containing state information for use in parsing.
  * Acts as a queue wrapper around the program token list.
  */
@@ -135,7 +146,13 @@ class StateManager {
 	private _endPos: Position;
 	private _lastToken: WHILE_TOKEN_EXTD|undefined;
 
-	public constructor(tokens: WHILE_TOKEN_EXTD[]) {
+	private _opts: StateManagerOpts;
+
+	public constructor(tokens: WHILE_TOKEN_EXTD[], opts?: Partial<StateManagerOpts>) {
+		this._opts = {
+			skipComments: opts?.skipComments ?? true,
+		};
+
 		this._errorManager = new ErrorManager();
 		this._tokens = tokens;
 		this._lastToken = undefined;
@@ -300,7 +317,10 @@ class StateManager {
 	 */
 	private _next(): WHILE_TOKEN_EXTD|null {
 		//Read the next token in the list
-		const first = this._tokens.shift() || null;
+		let first: WHILE_TOKEN_EXTD|null;
+		do {
+			first = this._tokens.shift() || null;
+		} while (this._opts.skipComments && first?.type === 'comment');
 		//Increment the position counter
 		if (first !== null) {
 			//Move to the start of the next token
@@ -1423,7 +1443,9 @@ export default function parser(tokens: WHILE_TOKEN[]|WHILE_TOKEN_EXTD[], props?:
 	};
 
 	//Make a state manager object for use in the parser
-	const stateManager = new StateManager(tokens);
+	const stateManager = new StateManager(tokens, {
+		skipComments: true,
+	});
 	//Parse the program
 	const prog: AST_PROG|AST_PROG_PARTIAL = _readProgram(stateManager, opts);
 	//Return the program and any discovered errors

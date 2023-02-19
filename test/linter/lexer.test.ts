@@ -39,7 +39,7 @@ import {
 	TKN_SWITCH,
 	TKN_TRUE,
 } from "../../src/types/extendedTokens";
-import { e_expr, e_opr, e_sym, error, expr, idnt, nmbr, opr, sym, ukwn } from "../utils";
+import { mcmt, e_expr, e_opr, e_sym, error, expr, idnt, lcmt, nmbr, opr, pos, sym, ukwn } from "../utils";
 
 chai.config.truncateThreshold = 0;
 
@@ -348,11 +348,12 @@ describe('Lexer', function () {
 						'write X'
 					)).to.deep.equal([
 						[
+							lcmt('This is a program to do something...', 0, 2),
 							idnt('prog', 1, 0),
 							expr(TKN_READ, 2, 0),
 							idnt('X', 2, 5),
 							sym(TKN_BLOCK_OPN, 2, 7),
-								//Nothing here
+								lcmt('Do something', 3, 3),
 							sym(TKN_BLOCK_CLS, 4, 0),
 							expr(TKN_WRITE, 5, 0),
 							idnt('X', 5, 6)
@@ -380,6 +381,7 @@ describe('Lexer', function () {
 								sym(TKN_ASSGN, 2, 3),
 								opr(TKN_TL, 2, 6),
 								idnt('X', 2, 9),
+								lcmt('Get the right child', 2, 13),
 							sym(TKN_BLOCK_CLS, 3, 0),
 							expr(TKN_WRITE, 4, 0),
 							idnt('X', 4, 6)
@@ -406,6 +408,7 @@ describe('Lexer', function () {
 								idnt('X', 2, 1),
 								sym(TKN_ASSGN, 2, 3),
 								opr(TKN_TL, 2, 6),
+								mcmt('Get the right child', pos(2, 11), pos(2, 30), 19),
 								idnt('X', 2, 33),
 							sym(TKN_BLOCK_CLS, 3, 0),
 							expr(TKN_WRITE, 4, 0),
@@ -434,7 +437,7 @@ describe('Lexer', function () {
 							expr(TKN_READ, 1, 0),
 							idnt('X', 1, 5),
 							sym(TKN_BLOCK_OPN, 1, 7),
-								//Nothing here
+							mcmt('\n\tThis is a commented line\n\tX := tl X\n\tNone of this is parsed\n\t', pos(2, 3), pos(6, 1)),
 							sym(TKN_BLOCK_CLS, 7, 0),
 							expr(TKN_WRITE, 8, 0),
 							idnt('X', 8, 6)
@@ -451,7 +454,9 @@ describe('Lexer', function () {
 					expect(lexer(
 						'//An empty file'
 					)).to.deep.equal([
-						[],
+						[
+							lcmt('An empty file', 0, 2),
+						],
 						[]
 					]);
 				});
@@ -459,7 +464,9 @@ describe('Lexer', function () {
 					expect(lexer(
 						'(*An empty file*)'
 					)).to.deep.equal([
-						[],
+						[
+							mcmt('An empty file', pos(0, 2), pos(0, 15)),
+						],
 						[]
 					]);
 				});
@@ -469,8 +476,60 @@ describe('Lexer', function () {
 						'An empty file\n' +
 						'*)\n'
 					)).to.deep.equal([
-						[],
+						[
+							mcmt('\nAn empty file\n', pos(0, 2), pos(2, 0)),
+						],
 						[]
+					]);
+				});
+				it('should accept an empty comment block', function () {
+					expect(lexer(
+						'(**)\n'
+					)).to.deep.equal([
+						[
+							mcmt('', pos(0, 2), pos(0, 2)),
+						],
+						[]
+					]);
+				});
+				it('should not accept an opening comment block with a space', function () {
+					expect(lexer(
+						'( **)'
+					)).to.deep.equal([
+						[
+							sym('(', 0, 0),
+							ukwn('*', 0, 2),
+							ukwn('*', 0, 3),
+							sym(')', 0, 4),
+						],
+						[
+							error('Unknown token "*"', pos(0, 2), pos(0, 3)),
+							error('Unknown token "*"', pos(0, 3), pos(0, 4)),
+						]
+					]);
+				});
+				it('should not accept an empty comment block with a missing asterisk', function () {
+					expect(lexer(
+						'(*)'
+					)).to.deep.equal([
+						[
+							mcmt(')', pos(0, 2), pos(0, 3)),
+						],
+						[
+							error('Missing expected closing comment symbol', pos(0, 2), pos(0, 3)),
+						]
+					]);
+				});
+				it('should not close a comment block with a space', function () {
+					expect(lexer(
+						'(** )'
+					)).to.deep.equal([
+						[
+							mcmt('* )', pos(0, 2), pos(0, 5)),
+						],
+						[
+							error('Missing expected closing comment symbol', pos(0, 2), pos(0, 5)),
+						]
 					]);
 				});
 			});

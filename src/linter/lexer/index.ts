@@ -1,5 +1,6 @@
 import { ErrorManager, ErrorType } from "../../utils/errorManager";
 import {
+	COMMENT_TYPE,
 	EXPR_TOKEN,
 	OP_TOKEN,
 	SYMBOL_TOKEN,
@@ -132,6 +133,59 @@ function read_number(program: PositionalIterator): string|null {
 function read_pad_token(program: PositionalIterator): string|null {
 	let matchLength = program.matchLength(/^(@[:=a-z]+)/i);
 	if (matchLength > -1) return program.next(matchLength);
+	return null;
+}
+
+function read_comment_token(progIterator: PositionalIterator, errorManager: ErrorManager): COMMENT_TYPE|null {
+	//End-of-line comment
+	if (progIterator.matchAndConsume('//')) {
+		let startPos = progIterator.getPosition();
+		//Read the comment
+		let value = progIterator.nextEOL();
+		//Return the comment token
+		return {
+			type: 'comment',
+			value,
+			length: value.length,
+			pos: startPos,
+			endPos: progIterator.getPosition(),
+		};
+	}
+
+	//Multiline/inline comment block
+	if (progIterator.matchAndConsume('(*')) {
+		let startPos = progIterator.getPosition();
+		//Ignore text to the end of the comment block
+		let length = progIterator.search('*)');
+		let hasClosingTag = length > -1;
+
+		//Assume the comment covers to the end of the file
+		if (!hasClosingTag) length = progIterator.remaining;
+
+		//Read the comment block
+		let value = progIterator.next(length);
+
+		//Get the end position before the closing block
+		let endPos = progIterator.getPosition();
+
+		//Error if there is a missing closing comment tag
+		if (!hasClosingTag) {
+			errorManager.addError(startPos, 'Missing expected closing comment symbol', progIterator.getPosition());
+		} else {
+			//Remove the closing symbols
+			progIterator.next(2);
+		}
+		//Return the comment token
+		return {
+			type: 'comment',
+			value,
+			length: value.length,
+			pos: startPos,
+			endPos: endPos,
+		};
+	}
+
+	//Not a comment
 	return null;
 }
 
@@ -270,20 +324,9 @@ export default function lexer(program: string, props?: LexerOptions): [(WHILE_TO
 	while (progIterator.hasNext()) {
 		if (progIterator.matchAndConsume(/^\s+/)) continue;
 
-		//End-of-line comment
-		if (progIterator.matches('//')) {
-			progIterator.nextEOL();
-			continue;
-		}
-
-		//Comment block (multiline/inline)
-		if (progIterator.matches('(*')) {
-			//Ignore text to the end of the comment block
-			let index = progIterator.search('*)');
-			if (index >= 0) index += 2;
-			else index = progIterator.remaining;
-			//Skip the comment block
-			progIterator.next(index);
+		let commentToken = read_comment_token(progIterator, errorManager);
+		if (commentToken !== null) {
+			res.push(commentToken);
 			continue;
 		}
 

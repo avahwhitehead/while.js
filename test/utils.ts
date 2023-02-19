@@ -1,5 +1,6 @@
 import { BinaryTree, ErrorType } from "../src";
 import {
+	COMMENT_TYPE,
 	EXPR_TOKEN,
 	EXPR_TYPE,
 	IDENT_TYPE,
@@ -234,6 +235,40 @@ export function nmbr(v: number, t: string, pos: Position|number, col?: number, l
 		value: v,
 		token: t,
 		pos: startPos,
+		endPos,
+		length
+	};
+}
+
+export function pos(r: number, c: number): Position {
+	return {
+		row: r,
+		col: c,
+	};
+}
+
+export function lcmt(v: string, row: number, col: number, length?: number): COMMENT_TYPE {
+	length ||= v.length;
+	return {
+		type: 'comment',
+		value: v,
+		pos: {
+			col: col,
+			row: row,
+		},
+		endPos: {
+			row: row,
+			col: col + length,
+		},
+		length
+	};
+}
+export function mcmt(v: string, pos: Position, endPos: Position, length?: number): COMMENT_TYPE {
+	if (length === undefined) length = v.length;
+	return {
+		type: 'comment',
+		value: v,
+		pos: pos,
 		endPos,
 		length
 	};

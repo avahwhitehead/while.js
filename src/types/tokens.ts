@@ -1,5 +1,9 @@
 import Position from "./position";
 
+// ================
+// Atoms
+// ================
+
 //Symbols
 export type SYMBOL_TOKEN = ';' | ':=' | '{' | '}' | '(' | ')';
 export const TKN_SEP: SYMBOL_TOKEN = ';';
@@ -23,63 +27,68 @@ export const TKN_CONS: OP_TOKEN = 'cons';
 export const TKN_HD: OP_TOKEN = 'hd';
 export const TKN_TL: OP_TOKEN = 'tl';
 
+// ================
+// Tokens
+// ================
+
+interface TOKEN {
+	type: string;
+	value: any,
+	length: number;
+	pos: Position;
+	endPos: Position;
+}
+
 //Token types
 /**
  * Represents a symbol in the token list.
  */
-export interface SYMBOL_TYPE {
+export interface SYMBOL_TYPE extends TOKEN {
 	type: 'symbol';
 	value: SYMBOL_TOKEN;
-	pos: Position;
-	endPos: Position;
-	length: number;
 }
 
 /**
  * Represents an expression (e.g. cons/hd/if/...) in the token list.
  */
-export interface EXPR_TYPE {
+export interface EXPR_TYPE extends TOKEN {
 	type: 'expression';
 	value: EXPR_TOKEN;
-	pos: Position;
-	endPos: Position;
-	length: number;
 }
 
 /**
  * Represents an expression (e.g. cons/hd/if/...) in the token list.
  */
-export interface OP_TYPE {
+export interface OP_TYPE extends TOKEN {
 	type: 'operation';
 	value: OP_TOKEN;
-	pos: Position;
-	endPos: Position;
-	length: number;
 }
 
 /**
  * Represents an identifier (variable) in the token list.
  */
-export interface IDENT_TYPE {
+export interface IDENT_TYPE extends TOKEN {
 	type: 'identifier';
 	value: string;
-	pos: Position;
-	endPos: Position;
-	length: number;
+}
+
+/**
+ * Represents a comment in the token list
+ */
+export interface COMMENT_TYPE extends TOKEN {
+	type: 'comment',
+	value: string,
 }
 
 /**
  * Represents an unknown identifier in the token list
  */
-export interface UNKNOWN_TYPE {
+export interface UNKNOWN_TYPE extends TOKEN {
 	type: 'unknown';
 	value: string;
-	pos: Position;
-	endPos: Position;
-	length: number;
 }
 
 /**
  * The type of the elements of the token list returned by the lexer
  */
-export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | UNKNOWN_TYPE;
+export type WHILE_TOKEN = SYMBOL_TYPE | EXPR_TYPE | OP_TYPE | IDENT_TYPE | COMMENT_TYPE | UNKNOWN_TYPE;
