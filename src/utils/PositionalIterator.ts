@@ -61,7 +61,7 @@ export class PositionalIterator {
 	 */
 	public nextEOL(): string {
 		//Count the number of characters to the next line break
-		let len = this.matchLength(/.*?(\r?\n|$)/);
+		let len = this.matchLength(/[^\r\n]+/);
 		//There is not a line break, read to the end of the string.
 		if (len === -1) len = this.remaining;
 		return this.next(len);
